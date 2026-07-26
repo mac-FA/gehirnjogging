@@ -16,6 +16,12 @@
   cursor:pointer;transition:border-color .12s,transform .12s;text-align:left;
 }
 .platz.leer{opacity:.45;cursor:default;justify-content:center;align-items:center;color:var(--muted)}
+/* Alles im Kästchen ist nur Anzeige – jeder Zeigerdruck landet auf dem Kästchen selbst,
+   damit die ganze Fläche als Trefferfläche wirkt. */
+.platz>*{pointer-events:none}
+.platz.leer .kopf,.platz.leer .wunsch,.platz.leer .geduld{display:none}
+.platz .freitext{display:none}
+.platz.leer .freitext{display:block}
 .platz.gewaehlt{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 0 0 3px var(--accent-soft)}
 .platz.fertig{border-color:var(--good);background:var(--accent-soft)}
 .platz .kopf{display:flex;align-items:center;gap:8px;font-weight:700}
@@ -194,30 +200,45 @@ function zeichne() {
       var d = document.createElement("div");
       d.className = "platz leer";
       d.dataset.i = i;
+      /* pointerdown greift sofort und hängt nicht davon ab, welches Element beim
+         Loslassen noch unter dem Finger liegt; click bleibt als Rückfallebene
+         daneben. Doppelt auswählen schadet nicht. */
+      d.addEventListener("pointerdown", function () { waehle(+this.dataset.i); });
       d.addEventListener("click", function () { waehle(+this.dataset.i); });
+      d.innerHTML =
+        '<div class="kopf"><span class="gesicht"></span><span class="was"></span></div>' +
+        '<div class="wunsch"></div>' +
+        '<div class="geduld"><i></i></div>' +
+        '<span class="freitext">frei</span>';
       box.appendChild(d);
     }
   }
   plaetze.forEach(function (k, i) {
     var el = box.children[i];
+    var balken = el.querySelector(".geduld");
+
+    /* Der Inhalt wird nur neu geschrieben, wenn sich wirklich etwas geändert hat –
+       nicht in jedem Einzelbild. Sonst verschwindet er mitten im Antippen. */
+    var kennung = k ? k.gesicht + "|" + k.wunsch.join(",") + "|" + k.hat.join(",") + "|" + k.fertig : "leer";
+    if (el.dataset.stand !== kennung) {
+      el.dataset.stand = kennung;
+      el.querySelector(".gesicht").textContent = k ? k.gesicht : "";
+      el.querySelector(".was").textContent = k ? (k.fertig ? "Danke!" : "möchte:") : "";
+      el.querySelector(".wunsch").innerHTML = !k ? "" : k.wunsch.map(function (w, j) {
+        var ware = WAREN.filter(function (x) { return x.id === w; })[0];
+        return k.hat[j] ? ware.icon : "<i>" + ware.icon + "</i>";
+      }).join("");
+    }
     if (!k) {
-      if (!el.classList.contains("leer") || el.innerHTML !== "frei") {
-        el.className = "platz leer";
-        el.innerHTML = "frei";
-      }
+      el.className = "platz leer";
       return;
     }
-    var offeneWaren = k.wunsch.map(function (w, j) {
-      var ware = WAREN.filter(function (x) { return x.id === w; })[0];
-      return k.hat[j] ? ware.icon : "<i>" + ware.icon + "</i>";
-    }).join("");
-    var anteil = Math.max(0, k.geduld / k.max);
-    var stand = anteil < 0.25 ? "knapp" : (anteil < 0.55 ? "mittel" : "");
     el.className = "platz" + (i === gewaehlt ? " gewaehlt" : "") + (k.fertig ? " fertig" : "");
-    el.innerHTML =
-      '<div class="kopf"><span>' + k.gesicht + "</span><span>" + (k.fertig ? "Danke!" : "möchte:") + "</span></div>" +
-      '<div class="wunsch">' + offeneWaren + "</div>" +
-      '<div class="geduld ' + stand + '"><i style="width:' + (anteil * 100) + '%"></i></div>';
+
+    /* Nur der Geduldsbalken ändert sich laufend */
+    var anteil = Math.max(0, k.geduld / k.max);
+    balken.className = "geduld " + (anteil < 0.25 ? "knapp" : (anteil < 0.55 ? "mittel" : ""));
+    balken.firstElementChild.style.width = (anteil * 100) + "%";
   });
 }
 
