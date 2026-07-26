@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regelwechsel – Gehirnjogging</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔀</text></svg>">
+<link rel="stylesheet" href="../css/common.css">
+<script src="../js/common.js"></script>
+<script src="../js/uebungen.js"></script>
+<style>
+.karte{
+  background:var(--surface);border:2px solid var(--border);border-radius:14px;
+  width:112px;height:132px;display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow);transition:transform .12s,border-color .12s;padding:6px;
+}
+.karte svg{width:100%;height:100%}
+button.karte{cursor:pointer}
+button.karte:hover{transform:translateY(-4px);border-color:var(--accent)}
+button.karte.gut{border-color:var(--good);background:var(--accent-soft)}
+button.karte.schlecht{border-color:var(--danger)}
+#reiz{width:130px;height:152px;border-width:3px;border-color:var(--accent)}
+.ziele{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+#regel{
+  font-size:1.35rem;font-weight:800;text-align:center;min-height:1.5em;
+  letter-spacing:.02em;
+}
+#regel small{display:block;font-size:.82rem;font-weight:600;color:var(--muted);letter-spacing:0}
+.zeitbalken{width:min(90vw,420px);height:10px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);overflow:hidden}
+.zeitbalken i{display:block;height:100%;background:var(--accent);width:100%}
+.zeitbalken.knapp i{background:var(--warn)}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="icon-btn" href="../index.html" title="Zur Übersicht">🏠</a>
+  <h1><span>🔀</span> Regelwechsel</h1>
+  <div class="actions">
+    <button class="icon-btn" id="btn-einst" title="Einstellungen">⚙️</button>
+    <button class="icon-btn" id="btn-theme" title="Hell/Dunkel">🌙</button>
+    <button class="icon-btn" id="btn-fs" title="Vollbild">⛶</button>
+  </div>
+</header>
+
+<main class="page center">
+  <div class="hud">
+    <div class="stat"><b id="h-runde">0/40</b><span>Runde</span></div>
+    <div class="stat"><b id="h-richtig">0</b><span>Richtig</span></div>
+    <div class="stat"><b id="h-zeit">–</b><span>Zeit je Karte</span></div>
+    <div class="stat"><b id="h-best">–</b><span>Bestwert</span></div>
+  </div>
+
+  <div id="start-box" class="center" style="text-align:center">
+    <p style="color:var(--muted);max-width:50ch;margin:0">
+      Oben liegt eine Karte. Lege sie zu der passenden Karte darunter –
+      je nach <b>Regel</b> nach Farbe, Form oder Anzahl.
+      Die Regel wechselt immer wieder, ohne Vorwarnung.
+    </p>
+    <button class="btn primary gross" id="btn-start" style="min-width:220px">▶ Start</button>
+  </div>
+
+  <div id="spiel" style="display:none" class="center">
+    <div id="regel"></div>
+    <div class="karte" id="reiz"></div>
+    <div class="zeitbalken" id="balken"><i></i></div>
+    <div class="ziele" id="ziele"></div>
+    <div class="ansage" id="ansage"></div>
+  </div>
+
+  <details class="rules">
+    <summary>📖 So geht’s</summary>
+    <p>Die Karte oben hat drei Eigenschaften: <b>Farbe</b>, <b>Form</b> und <b>Anzahl</b>.
+    Unten liegen vier Karten – genau eine passt zur Farbe, genau eine zur Form, genau
+    eine zur Anzahl. Welche du wählen musst, sagt die aktuelle Regel.</p>
+    <p>Im Modus <b>„Regel wird angesagt“</b> steht sie über den Karten und wechselt
+    unangekündigt. Im Modus <b>„Regel selbst finden“</b> wird sie nie genannt – du
+    erkennst sie nur an richtig und falsch, und sie ändert sich, sobald du sie sicher
+    beherrschst. Das ist die klassische, deutlich anspruchsvollere Variante.</p>
+    <p>Gemessen wird auch, wie viel Zeit dich ein Wechsel kostet – die sogenannten
+    <b>Umschaltkosten</b>. Genau diese Fähigkeit, flink zwischen Regeln zu springen,
+    verbesserte sich in Studien mit Echtzeit-Strategiespielen messbar.</p>
+  </details>
+</main>
+
+<div class="overlay" id="ov-einst" data-dismiss>
+  <div class="panel">
+    <h2>Einstellungen</h2>
+    <div class="field"><label>Regel</label>
+      <div class="seg" id="s-modus">
+        <button data-value="angesagt" class="active">wird angesagt</button>
+        <button data-value="selbst">selbst finden</button>
+      </div>
+    </div>
+    <div class="field"><label>Runden</label>
+      <div class="seg" id="s-runden">
+        <button data-value="24">24</button>
+        <button data-value="40" class="active">40</button>
+        <button data-value="60">60</button>
+      </div>
+    </div>
+    <div class="field"><label>Zeitdruck</label>
+      <div class="seg" id="s-zeit">
+        <button data-value="1" class="active">Ja</button>
+        <button data-value="0">Ohne Uhr</button>
+      </div>
+      <small>Ohne Uhr kannst du in Ruhe überlegen – dann zählt nur die Trefferquote.</small>
+    </div>
+    <div class="panel-buttons">
+      <button class="btn primary" id="btn-uebernehmen">Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var cfg = GJ.load("regelwechsel-cfg", { modus: "angesagt", runden: 40, zeit: 1 });
+
+var FARBEN = { rot: "#c0392b", blau: "#2c6fae", gruen: "#3d7a4e", gelb: "#c9962b" };
+var FARBNAMEN = Object.keys(FARBEN);
+var FORMEN = ["kreis", "dreieck", "quadrat", "raute"];
+var REGELN = [
+  { id: "farbe", name: "Farbe", hilfe: "gleiche Farbe wählen" },
+  { id: "form", name: "Form", hilfe: "gleiche Form wählen" },
+  { id: "anzahl", name: "Anzahl", hilfe: "gleiche Anzahl wählen" }
+];
+
+var treppe, runde, richtig, regel, letzteRegel, seitWechsel, serie;
+var reiz, ziele, laeuft = false, offen = false, tStart = 0, uhr = null, balkenAnim = null;
+var zeitenWechsel = [], zeitenGleich = [], wechselDran = false;
+
+function formSVG(farbe, form, anzahl) {
+  var f = FARBEN[farbe], teile = [], reihen = anzahl > 2 ? 2 : 1;
+  var proReihe = Math.ceil(anzahl / reihen);
+  var i = 0;
+  for (var r = 0; r < reihen; r++) {
+    var n = Math.min(proReihe, anzahl - r * proReihe);
+    for (var k = 0; k < n; k++, i++) {
+      var cx = 50 + (k - (n - 1) / 2) * 30;
+      var cy = reihen === 1 ? 50 : 34 + r * 32;
+      if (form === "kreis") teile.push('<circle cx="' + cx + '" cy="' + cy + '" r="11" fill="' + f + '"/>');
+      else if (form === "quadrat") teile.push('<rect x="' + (cx - 10) + '" y="' + (cy - 10) + '" width="20" height="20" rx="3" fill="' + f + '"/>');
+      else if (form === "dreieck") teile.push('<polygon points="' + cx + ',' + (cy - 12) + ' ' + (cx + 12) + ',' + (cy + 10) + ' ' + (cx - 12) + ',' + (cy + 10) + '" fill="' + f + '"/>');
+      else teile.push('<polygon points="' + cx + ',' + (cy - 13) + ' ' + (cx + 11) + ',' + cy + ' ' + cx + ',' + (cy + 13) + ' ' + (cx - 11) + ',' + cy + '" fill="' + f + '"/>');
+    }
+  }
+  return '<svg viewBox="0 0 100 100">' + teile.join("") + "</svg>";
+}
+
+function andere(liste, ausser) {
+  var rest = liste.filter(function (x) { return ausser.indexOf(x) < 0; });
+  return GJ.pick(rest);
+}
+
+function baueRunde() {
+  reiz = {
+    farbe: GJ.pick(FARBNAMEN),
+    form: GJ.pick(FORMEN),
+    anzahl: 1 + Math.floor(Math.random() * 4)
+  };
+  var zahlen = [1, 2, 3, 4];
+  var kFarbe = { farbe: reiz.farbe, form: andere(FORMEN, [reiz.form]), anzahl: andere(zahlen, [reiz.anzahl]) };
+  var kForm = { farbe: andere(FARBNAMEN, [reiz.farbe, kFarbe.farbe]), form: reiz.form, anzahl: andere(zahlen, [reiz.anzahl, kFarbe.anzahl]) };
+  var kZahl = { farbe: andere(FARBNAMEN, [reiz.farbe, kFarbe.farbe, kForm.farbe]), form: andere(FORMEN, [reiz.form, kFarbe.form]), anzahl: reiz.anzahl };
+  var kNichts = {
+    farbe: andere(FARBNAMEN, [reiz.farbe, kFarbe.farbe, kForm.farbe]),
+    form: andere(FORMEN, [reiz.form, kFarbe.form, kZahl.form]),
+    anzahl: andere(zahlen, [reiz.anzahl, kFarbe.anzahl, kForm.anzahl])
+  };
+  kFarbe.passt = "farbe"; kForm.passt = "form"; kZahl.passt = "anzahl"; kNichts.passt = "nichts";
+  ziele = GJ.shuffle([kFarbe, kForm, kZahl, kNichts]);
+}
+
+function zeige() {
+  GJ.el("reiz").innerHTML = formSVG(reiz.farbe, reiz.form, reiz.anzahl);
+  var box = GJ.el("ziele");
+  box.innerHTML = "";
+  ziele.forEach(function (z, i) {
+    var b = document.createElement("button");
+    b.className = "karte";
+    b.innerHTML = formSVG(z.farbe, z.form, z.anzahl);
+    b.setAttribute("aria-label", "Karte " + (i + 1));
+    b.addEventListener("click", function () { antwort(z, b); });
+    box.appendChild(b);
+  });
+  var r = GJ.el("regel");
+  if (cfg.modus === "angesagt") {
+    r.innerHTML = "Sortiere nach <span style=\"color:var(--accent)\">" + regel.name + "</span>" +
+      "<small>" + regel.hilfe + "</small>";
+  } else {
+    r.innerHTML = "Welche passt?<small>Die Regel musst du selbst herausfinden</small>";
+  }
+  GJ.el("ansage").textContent = "";
+  GJ.el("ansage").className = "ansage";
+  offen = true;
+  tStart = performance.now();
+  starteUhr();
+}
+
+function starteUhr() {
+  clearTimeout(uhr); cancelAnimationFrame(balkenAnim);
+  var balken = GJ.el("balken"), fuellung = balken.firstElementChild;
+  if (!cfg.zeit) { balken.style.visibility = "hidden"; return; }
+  balken.style.visibility = "";
+  var dauer = treppe.wert;
+  var t0 = performance.now();
+  (function laufen() {
+    var rest = 1 - (performance.now() - t0) / dauer;
+    fuellung.style.width = Math.max(0, rest * 100) + "%";
+    balken.classList.toggle("knapp", rest < 0.35);
+    if (rest > 0 && offen) balkenAnim = requestAnimationFrame(laufen);
+  })();
+  uhr = setTimeout(function () { if (offen) antwort(null, null); }, dauer);
+}
+
+function antwort(z, knopf) {
+  if (!offen) return;
+  offen = false;
+  clearTimeout(uhr); cancelAnimationFrame(balkenAnim);
+  var rt = performance.now() - tStart;
+  var gut = !!z && z.passt === regel.id;
+
+  if (gut) {
+    richtig++; serie++; treppe.richtig();
+    if (knopf) knopf.classList.add("gut");
+    GJ.el("ansage").textContent = "✓ Richtig";
+    GJ.el("ansage").className = "ansage gut";
+    (wechselDran ? zeitenWechsel : zeitenGleich).push(rt);
+  } else {
+    serie = 0; treppe.falsch();
+    if (knopf) knopf.classList.add("schlecht");
+    GJ.$$("#ziele .karte").forEach(function (b, i) {
+      if (ziele[i].passt === regel.id) b.classList.add("gut");
+    });
+    GJ.el("ansage").textContent = z ? "✗ Es galt: " + regel.name : "⏱ Zeit vorbei – es galt: " + regel.name;
+    GJ.el("ansage").className = "ansage schlecht";
+  }
+  GJ.pieps(gut);
+  hud();
+
+  /* Regelwechsel vorbereiten */
+  wechselDran = false;
+  seitWechsel++;
+  if (cfg.modus === "angesagt") {
+    if (seitWechsel >= 3 + Math.floor(Math.random() * 4)) neueRegel();
+  } else {
+    if (serie >= 5) { neueRegel(); serie = 0; }
+  }
+
+  setTimeout(function () {
+    if (runde >= cfg.runden) return ende();
+    runde++; baueRunde(); zeige(); hud();
+  }, gut ? 600 : 1350);
+}
+
+function neueRegel() {
+  letzteRegel = regel;
+  var rest = REGELN.filter(function (r) { return r.id !== regel.id; });
+  regel = GJ.pick(rest);
+  seitWechsel = 0;
+  wechselDran = true;
+}
+
+function start() {
+  treppe = new GJ.Treppe({ start: 2800, min: 550, max: 6000, faktor: 0.9, nDown: 2 });
+  runde = 1; richtig = 0; serie = 0; seitWechsel = 0;
+  zeitenWechsel = []; zeitenGleich = []; wechselDran = false;
+  regel = GJ.pick(REGELN);
+  laeuft = true;
+  GJ.el("start-box").style.display = "none";
+  GJ.el("spiel").style.display = "";
+  baueRunde(); zeige(); hud();
+}
+
+function mittel(a) { return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : 0; }
+
+function ende() {
+  laeuft = false; offen = false;
+  var quote = richtig / cfg.runden;
+  var punkte;
+  if (cfg.zeit) {
+    var schwelle = treppe.schwelle();
+    var anteil = (Math.log(6000) - Math.log(schwelle)) / (Math.log(6000) - Math.log(550));
+    punkte = GJ.clamp(anteil * 100, 0, 100) * (0.4 + 0.6 * quote);
+  } else {
+    punkte = quote * 78; /* ohne Zeitdruck ist die Aufgabe deutlich leichter */
+  }
+  var kosten = Math.round(mittel(zeitenWechsel) - mittel(zeitenGleich));
+  GJ.el("start-box").style.display = "";
+  GJ.el("spiel").style.display = "none";
+  GJ.rahmen.fertig({
+    punkte: punkte,
+    roh: Math.round(cfg.zeit ? treppe.schwelle() : quote * 100),
+    titel: richtig + " von " + cfg.runden + " richtig",
+    text: cfg.zeit ? "Du hattest zuletzt " + Math.round(treppe.schwelle()) + " ms je Karte Zeit." :
+                     "Ohne Zeitdruck gespielt.",
+    rohText: (zeitenWechsel.length && kosten > 0 ? "Ein Regelwechsel kostete dich rund " + kosten + " ms. " : "") +
+             (cfg.modus === "selbst" ? "Regel selbst gefunden." : "Regel angesagt.")
+  });
+}
+
+function hud() {
+  GJ.el("h-runde").textContent = runde + "/" + cfg.runden;
+  GJ.el("h-richtig").textContent = richtig;
+  GJ.el("h-zeit").textContent = laeuft && cfg.zeit ? Math.round(treppe.wert) + " ms" : "–";
+  GJ.el("h-best").textContent = GJ.bestwert("regelwechsel") || "–";
+}
+
+document.addEventListener("keydown", function (e) {
+  if (document.querySelector(".overlay.open")) return;
+  if (offen && e.key >= "1" && e.key <= "4") {
+    var b = GJ.$$("#ziele .karte")[+e.key - 1];
+    if (b) b.click();
+  } else if (!laeuft && e.key === "Enter") GJ.el("btn-start").click();
+});
+
+["s-modus", "s-runden", "s-zeit"].forEach(function (id) { GJ.seg(GJ.el(id)); });
+GJ.el("btn-einst").addEventListener("click", function () {
+  GJ.segSet(GJ.el("s-modus"), cfg.modus);
+  GJ.segSet(GJ.el("s-runden"), cfg.runden);
+  GJ.segSet(GJ.el("s-zeit"), cfg.zeit);
+  GJ.open("ov-einst");
+});
+GJ.el("btn-uebernehmen").addEventListener("click", function () {
+  cfg = {
+    modus: GJ.segVal(GJ.el("s-modus")),
+    runden: +GJ.segVal(GJ.el("s-runden")),
+    zeit: +GJ.segVal(GJ.el("s-zeit"))
+  };
+  GJ.save("regelwechsel-cfg", cfg);
+  GJ.close("ov-einst");
+  laeuft = false; offen = false;
+  clearTimeout(uhr);
+  GJ.el("start-box").style.display = "";
+  GJ.el("spiel").style.display = "none";
+  hud();
+});
+GJ.el("btn-start").addEventListener("click", start);
+
+document.addEventListener("DOMContentLoaded", function () {
+  GJ.rahmen.start("regelwechsel", start);
+  hud();
+});
+</script>
+</body>
+</html>

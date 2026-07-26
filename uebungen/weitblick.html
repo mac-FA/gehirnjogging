@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weitblick – Gehirnjogging</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👁️</text></svg>">
+<link rel="stylesheet" href="../css/common.css">
+<script src="../js/common.js"></script>
+<script src="../js/uebungen.js"></script>
+<style>
+#frage{font-size:1.15rem;font-weight:700;min-height:1.6em;text-align:center}
+#tempo{font-variant-numeric:tabular-nums}
+.wahl{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;min-height:70px}
+.wahl .btn{min-width:170px;min-height:62px;font-size:1.15rem}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="icon-btn" href="../index.html" title="Zur Übersicht">🏠</a>
+  <h1><span>👁️</span> Weitblick</h1>
+  <div class="actions">
+    <button class="icon-btn" id="btn-einst" title="Einstellungen">⚙️</button>
+    <button class="icon-btn" id="btn-theme" title="Hell/Dunkel">🌙</button>
+    <button class="icon-btn" id="btn-fs" title="Vollbild">⛶</button>
+  </div>
+</header>
+
+<main class="page center">
+  <div class="hud">
+    <div class="stat"><b id="h-runde">0/20</b><span>Runde</span></div>
+    <div class="stat"><b id="tempo">–</b><span>Millisek.</span></div>
+    <div class="stat"><b id="h-best">–</b><span>Bestwert</span></div>
+  </div>
+
+  <div id="start-box" class="center" style="text-align:center">
+    <p style="color:var(--muted);max-width:48ch;margin:0">
+      In der Mitte erscheint kurz ein <b>Auto</b> oder ein <b>Lastwagen</b> – und
+      gleichzeitig ganz außen ein zweites Auto. Merke dir beides.
+      Je besser du wirst, desto kürzer wird eingeblendet.
+    </p>
+    <button class="btn primary gross" id="btn-start" style="min-width:220px">▶ Start</button>
+  </div>
+
+  <div id="spiel" style="display:none" class="center">
+    <div class="buehne"><canvas id="c" width="600" height="600"></canvas></div>
+    <div id="frage"></div>
+    <div class="wahl" id="wahl"></div>
+  </div>
+
+  <details class="rules">
+    <summary>📖 So geht’s</summary>
+    <p>Schaue immer auf die <b>Mitte</b> des Feldes – nicht umherwandern. Das Bild wird
+    nur einen Augenblick gezeigt und dann verdeckt. Danach wirst du zweierlei gefragt:
+    <b>Was war in der Mitte</b> (Auto oder Lastwagen) und <b>wo am Rand</b> war das
+    zweite Auto. Beides muss stimmen, damit die Runde zählt.</p>
+    <p>Die Einblendzeit passt sich an: Nach zwei richtigen Runden wird sie kürzer, nach
+    einem Fehler wieder länger. So bleibst du immer knapp an deiner Grenze – dort lernt
+    das Gehirn am meisten. Am Ende zählt die kürzeste Zeit, die du noch zuverlässig
+    schaffst.</p>
+    <p>Diese Aufgabe ist dem <b>Sehfeld-Training der ACTIVE-Studie</b> nachempfunden –
+    dem am besten belegten Training in diesem Bereich. Trainiert wird die
+    Verarbeitungsgeschwindigkeit und das nutzbare Sehfeld.</p>
+  </details>
+</main>
+
+<div class="overlay" id="ov-einst" data-dismiss>
+  <div class="panel">
+    <h2>Einstellungen</h2>
+    <div class="field"><label>Übungsart</label>
+      <div class="seg" id="s-art">
+        <button data-value="mitte">Nur Mitte</button>
+        <button data-value="rand" class="active">Mitte + Rand</button>
+        <button data-value="ablenker">…mit Ablenkern</button>
+      </div>
+      <small>„Mitte + Rand“ ist die eigentliche Übung. Ablenker machen sie deutlich schwerer.</small>
+    </div>
+    <div class="field"><label>Runden</label>
+      <div class="seg" id="s-runden">
+        <button data-value="12">12</button>
+        <button data-value="20" class="active">20</button>
+        <button data-value="30">30</button>
+      </div>
+    </div>
+    <div class="field"><label>Startzeit</label>
+      <div class="seg" id="s-start">
+        <button data-value="800">Gemütlich</button>
+        <button data-value="500" class="active">Normal</button>
+        <button data-value="300">Zügig</button>
+      </div>
+      <small>Nur der Anfang – danach stellt sich die Zeit von selbst ein.</small>
+    </div>
+    <div class="panel-buttons">
+      <button class="btn primary" id="btn-uebernehmen">Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var cfg = GJ.load("weitblick-cfg", { art: "rand", runden: 20, start: 500 });
+
+var c = GJ.el("c"), ctx = c.getContext("2d");
+var W = 600, M = 300;               /* Mitte */
+var treppe, runde, richtig, ziel, mitteIst, antwortA, ablenker;
+var laeuft = false, phase = "", ringAktiv = false, zeigerSektor = -1;
+
+function farbe(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim() || "#888"; }
+
+/* ---------------- Zeichnen ---------------- */
+function leeren() {
+  ctx.fillStyle = farbe("--surface");
+  ctx.fillRect(0, 0, W, W);
+}
+function kreuz() {
+  leeren();
+  ctx.strokeStyle = farbe("--muted"); ctx.lineWidth = 4; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(M - 16, M); ctx.lineTo(M + 16, M);
+  ctx.moveTo(M, M - 16); ctx.lineTo(M, M + 16);
+  ctx.stroke();
+}
+function fahrzeug(x, y, gross, istLKW) {
+  var s = gross ? 1 : 0.62;
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.fillStyle = farbe("--text");
+  if (istLKW) {
+    ctx.fillRect(-46, -14, 52, 26);   /* Aufbau */
+    ctx.fillRect(8, 0, 34, 12);       /* Führerhaus */
+    ctx.fillRect(24, -10, 16, 12);
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(-40, 12); ctx.lineTo(-34, -4); ctx.lineTo(-12, -4);
+    ctx.lineTo(-2, -16); ctx.lineTo(22, -16); ctx.lineTo(30, -4);
+    ctx.lineTo(40, -2); ctx.lineTo(40, 12);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.beginPath(); ctx.arc(-24, 14, 8, 0, 7); ctx.arc(24, 14, 8, 0, 7);
+  ctx.fillStyle = farbe("--accent"); ctx.fill();
+  ctx.restore();
+}
+function reizBild() {
+  leeren();
+  /* Rahmen um die Mitte, damit der Blick dort bleibt */
+  ctx.strokeStyle = farbe("--border"); ctx.lineWidth = 2;
+  ctx.strokeRect(M - 70, M - 46, 140, 92);
+  fahrzeug(M, M, true, mitteIst === "lkw");
+  if (cfg.art !== "mitte") {
+    var r = 232;
+    var w = (ziel * Math.PI) / 4 - Math.PI / 2;
+    fahrzeug(M + Math.cos(w) * r, M + Math.sin(w) * r, false, false);
+    if (cfg.art === "ablenker") {
+      ctx.fillStyle = farbe("--muted");
+      ablenker.forEach(function (a) {
+        ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(a.d);
+        ctx.fillRect(-13, -13, 26, 26);
+        ctx.restore();
+      });
+    }
+  }
+}
+function maske() {
+  leeren();
+  var rnd = Math.random;
+  ctx.fillStyle = farbe("--muted");
+  for (var i = 0; i < 260; i++) {
+    var x = rnd() * W, y = rnd() * W;
+    ctx.globalAlpha = 0.35 + rnd() * 0.4;
+    ctx.fillRect(x, y, 16, 16);
+  }
+  ctx.globalAlpha = 1;
+}
+function ringBild() {
+  leeren();
+  var r1 = 130, r2 = 280;
+  for (var i = 0; i < 8; i++) {
+    var a0 = (i * Math.PI) / 4 - Math.PI / 2 - Math.PI / 8;
+    var a1 = a0 + Math.PI / 4;
+    ctx.beginPath();
+    ctx.arc(M, M, r2, a0, a1);
+    ctx.arc(M, M, r1, a1, a0, true);
+    ctx.closePath();
+    ctx.fillStyle = i === zeigerSektor ? farbe("--accent-soft") : farbe("--surface2");
+    ctx.fill();
+    ctx.strokeStyle = farbe("--border"); ctx.lineWidth = 2; ctx.stroke();
+    var w = (i * Math.PI) / 4 - Math.PI / 2, rr = (r1 + r2) / 2;
+    ctx.fillStyle = i === zeigerSektor ? farbe("--accent") : farbe("--muted");
+    ctx.beginPath(); ctx.arc(M + Math.cos(w) * rr, M + Math.sin(w) * rr, 11, 0, 7); ctx.fill();
+  }
+  ctx.fillStyle = farbe("--muted");
+  ctx.font = "600 22px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("Wo war das", M, M - 8);
+  ctx.fillText("zweite Auto?", M, M + 20);
+}
+function rueckmeldung(gut, text) {
+  leeren();
+  ctx.fillStyle = gut ? farbe("--good") : farbe("--danger");
+  ctx.font = "700 64px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(gut ? "✓" : "✗", M, M - 6);
+  ctx.fillStyle = farbe("--muted");
+  ctx.font = "500 24px system-ui, sans-serif";
+  ctx.fillText(text, M, M + 52);
+}
+
+/* ---------------- Ablauf ---------------- */
+function start() {
+  treppe = new GJ.Treppe({ start: cfg.start, min: 17, max: 1200, faktor: 0.82, nDown: 2 });
+  runde = 0; richtig = 0; laeuft = true;
+  GJ.el("start-box").style.display = "none";
+  GJ.el("spiel").style.display = "";
+  hud();
+  naechsteRunde();
+}
+
+function naechsteRunde() {
+  if (runde >= cfg.runden) return ende();
+  runde++;
+  hud();
+  mitteIst = Math.random() < 0.5 ? "auto" : "lkw";
+  ziel = Math.floor(Math.random() * 8);
+  ablenker = [];
+  if (cfg.art === "ablenker") {
+    for (var i = 0; i < 22; i++) {
+      var w = Math.random() * Math.PI * 2, r = 120 + Math.random() * 140;
+      var x = M + Math.cos(w) * r, y = M + Math.sin(w) * r;
+      var zw = (ziel * Math.PI) / 4 - Math.PI / 2;
+      var zx = M + Math.cos(zw) * 232, zy = M + Math.sin(zw) * 232;
+      if (Math.hypot(x - zx, y - zy) < 62) continue;   /* Ziel freihalten */
+      ablenker.push({ x: x, y: y, d: Math.random() * 3 });
+    }
+  }
+  GJ.el("wahl").innerHTML = "";
+  GJ.el("frage").textContent = "Auf die Mitte schauen …";
+  phase = "kreuz";
+  kreuz();
+  setTimeout(function () {
+    if (!laeuft) return;
+    phase = "reiz";
+    reizBild();
+    setTimeout(function () {
+      if (!laeuft) return;
+      phase = "maske";
+      maske();
+      setTimeout(frageMitte, 320);
+    }, Math.round(treppe.wert));
+  }, 650);
+}
+
+function frageMitte() {
+  if (!laeuft) return;
+  phase = "frageA";
+  leeren();
+  GJ.el("frage").textContent = "Was war in der Mitte?";
+  var w = GJ.el("wahl");
+  w.innerHTML = "";
+  [["auto", "🚗 Auto"], ["lkw", "🚚 Lastwagen"]].forEach(function (p) {
+    var b = document.createElement("button");
+    b.className = "btn";
+    b.textContent = p[1];
+    b.addEventListener("click", function () {
+      antwortA = p[0];
+      if (cfg.art === "mitte") pruefen(-1);
+      else frageRand();
+    });
+    w.appendChild(b);
+  });
+}
+
+function frageRand() {
+  phase = "frageB";
+  ringAktiv = true; zeigerSektor = -1;
+  GJ.el("frage").textContent = "Und wo war das zweite Auto?";
+  GJ.el("wahl").innerHTML = "";
+  ringBild();
+}
+
+function pruefen(sektor) {
+  ringAktiv = false;
+  phase = "antwort";
+  var mitteOk = antwortA === mitteIst;
+  var randOk = cfg.art === "mitte" || sektor === ziel;
+  var gut = mitteOk && randOk;
+  if (gut) { richtig++; treppe.richtig(); } else { treppe.falsch(); }
+  GJ.pieps(gut);
+  var text = gut ? Math.round(treppe.wert) + " ms" :
+    (!mitteOk && !randOk ? "beides daneben" : (!mitteOk ? "Mitte war " + (mitteIst === "lkw" ? "der Lastwagen" : "das Auto") : "das Auto war woanders"));
+  rueckmeldung(gut, text);
+  GJ.el("frage").textContent = gut ? "Richtig!" : "Nicht ganz.";
+  GJ.el("wahl").innerHTML = "";
+  hud();
+  setTimeout(naechsteRunde, gut ? 750 : 1250);
+}
+
+function ende() {
+  laeuft = false;
+  var schwelle = treppe.schwelle();
+  var punkte = 100 * (1 - (Math.log(schwelle) - Math.log(17)) / (Math.log(900) - Math.log(17)));
+  punkte = GJ.clamp(punkte, 0, 100);
+  var ms = Math.round(schwelle);
+  GJ.el("start-box").style.display = "";
+  GJ.el("spiel").style.display = "none";
+  hud();
+  GJ.rahmen.fertig({
+    punkte: punkte,
+    roh: ms,
+    titel: ms + " ms",
+    text: "So kurz durfte das Bild sein, damit du es noch zuverlässig erfasst hast. " +
+          richtig + " von " + cfg.runden + " Runden richtig.",
+    rohText: (cfg.art === "mitte" ? "Nur Mitte" : cfg.art === "ablenker" ? "Mit Ablenkern" : "Mitte + Rand") +
+             " · Trefferquote " + Math.round(treppe.quote() * 100) + " %"
+  });
+}
+
+function hud() {
+  GJ.el("h-runde").textContent = runde + "/" + cfg.runden;
+  GJ.el("tempo").textContent = laeuft ? Math.round(treppe.wert) : "–";
+  var b = GJ.bestwert("weitblick");
+  GJ.el("h-best").textContent = b || "–";
+}
+
+/* ---------------- Zeigen und Klicken auf dem Ring ---------------- */
+function sektorAus(e) {
+  var r = c.getBoundingClientRect();
+  var x = ((e.clientX - r.left) / r.width) * W - M;
+  var y = ((e.clientY - r.top) / r.height) * W - M;
+  var d = Math.hypot(x, y);
+  if (d < 90) return -1;
+  var w = Math.atan2(y, x) + Math.PI / 2;
+  while (w < 0) w += Math.PI * 2;
+  return Math.round(w / (Math.PI / 4)) % 8;
+}
+c.addEventListener("pointermove", function (e) {
+  if (!ringAktiv) return;
+  var s = sektorAus(e);
+  if (s !== zeigerSektor) { zeigerSektor = s; ringBild(); }
+});
+c.addEventListener("pointerleave", function () {
+  if (ringAktiv && zeigerSektor !== -1) { zeigerSektor = -1; ringBild(); }
+});
+c.addEventListener("pointerdown", function (e) {
+  if (!ringAktiv) return;
+  var s = sektorAus(e);
+  if (s >= 0) pruefen(s);
+});
+document.addEventListener("keydown", function (e) {
+  if (document.querySelector(".overlay.open")) return;
+  if (phase === "frageA") {
+    if (e.key === "1" || e.key === "ArrowLeft") GJ.$$("#wahl .btn")[0].click();
+    if (e.key === "2" || e.key === "ArrowRight") GJ.$$("#wahl .btn")[1].click();
+  } else if (!laeuft && e.key === "Enter") {
+    GJ.el("btn-start").click();
+  }
+});
+
+/* ---------------- Einstellungen ---------------- */
+["s-art", "s-runden", "s-start"].forEach(function (id) { GJ.seg(GJ.el(id)); });
+GJ.el("btn-einst").addEventListener("click", function () {
+  GJ.segSet(GJ.el("s-art"), cfg.art);
+  GJ.segSet(GJ.el("s-runden"), cfg.runden);
+  GJ.segSet(GJ.el("s-start"), cfg.start);
+  GJ.open("ov-einst");
+});
+GJ.el("btn-uebernehmen").addEventListener("click", function () {
+  cfg = {
+    art: GJ.segVal(GJ.el("s-art")),
+    runden: +GJ.segVal(GJ.el("s-runden")),
+    start: +GJ.segVal(GJ.el("s-start"))
+  };
+  GJ.save("weitblick-cfg", cfg);
+  GJ.close("ov-einst");
+  laeuft = false;
+  GJ.el("start-box").style.display = "";
+  GJ.el("spiel").style.display = "none";
+  hud();
+});
+GJ.el("btn-start").addEventListener("click", start);
+
+document.addEventListener("DOMContentLoaded", function () {
+  GJ.rahmen.start("weitblick", start);
+  hud();
+});
+</script>
+</body>
+</html>

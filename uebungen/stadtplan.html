@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stadtplan – Gehirnjogging</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>">
+<link rel="stylesheet" href="../css/common.css">
+<script src="../js/common.js"></script>
+<script src="../js/uebungen.js"></script>
+<style>
+#frage{font-size:1.1rem;font-weight:700;text-align:center;max-width:46ch;min-height:3em}
+#frage em{color:var(--accent);font-style:normal}
+.antworten .btn{min-width:130px;min-height:58px;font-size:1.05rem}
+.merkbalken{width:min(90vw,420px);height:10px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);overflow:hidden}
+.merkbalken i{display:block;height:100%;background:var(--accent);width:100%}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="icon-btn" href="../index.html" title="Zur Übersicht">🏠</a>
+  <h1><span>🗺️</span> Stadtplan</h1>
+  <div class="actions">
+    <button class="icon-btn" id="btn-einst" title="Einstellungen">⚙️</button>
+    <button class="icon-btn" id="btn-theme" title="Hell/Dunkel">🌙</button>
+    <button class="icon-btn" id="btn-fs" title="Vollbild">⛶</button>
+  </div>
+</header>
+
+<main class="page center">
+  <div class="hud">
+    <div class="stat"><b id="h-karte">0/4</b><span>Karte</span></div>
+    <div class="stat"><b id="h-richtig">0</b><span>Richtig</span></div>
+    <div class="stat"><b id="h-merk">–</b><span>Merkzeit</span></div>
+    <div class="stat"><b id="h-best">–</b><span>Bestwert</span></div>
+  </div>
+
+  <div id="start-box" class="center" style="text-align:center">
+    <p style="color:var(--muted);max-width:50ch;margin:0">
+      Ein kleiner Ortsplan wird gezeigt – präge dir ein, <b>wo was liegt</b>.
+      Danach verschwindet er, und du musst dich im Kopf darin zurechtfinden:
+      Was liegt von hier aus gesehen links, was rechts?
+    </p>
+    <button class="btn primary gross" id="btn-start" style="min-width:220px">▶ Start</button>
+  </div>
+
+  <div id="spiel" style="display:none" class="center">
+    <div class="buehne"><canvas id="c" width="560" height="560"></canvas></div>
+    <div class="merkbalken" id="balken" style="visibility:hidden"><i></i></div>
+    <div id="frage"></div>
+    <div class="antworten" id="antworten"></div>
+  </div>
+
+  <details class="rules">
+    <summary>📖 So geht’s</summary>
+    <p>Zuerst siehst du den Plan mit mehreren Gebäuden. Norden ist immer oben.
+    Wenn der Plan verschwindet, kommen Fragen wie: <b>„Du stehst an der Kirche und
+    schaust zum Bahnhof – wo liegt der Brunnen?“</b> Antworte aus Sicht der Person,
+    die dort steht: vorne, rechts, hinten oder links.</p>
+    <p>Das ist mehr als reines Auswendiglernen: Du musst den Plan im Kopf drehen.
+    Genau diese Fähigkeit – sich eine räumliche Karte zu bauen und zu nutzen – hängt
+    am <b>Hippocampus</b>, jener Hirnregion, die bei Älteren am stärksten schrumpft und
+    die in Studien mit Navigationsspielen nachweislich zulegte.</p>
+    <p>Je besser du wirst, desto kürzer wird der Plan gezeigt und desto mehr Gebäude
+    kommen dazu.</p>
+  </details>
+</main>
+
+<div class="overlay" id="ov-einst" data-dismiss>
+  <div class="panel">
+    <h2>Einstellungen</h2>
+    <div class="field"><label>Karten</label>
+      <div class="seg" id="s-karten">
+        <button data-value="3">3</button>
+        <button data-value="4" class="active">4</button>
+        <button data-value="6">6</button>
+      </div>
+      <small>Drei Fragen je Karte.</small>
+    </div>
+    <div class="field"><label>Startzeit zum Merken</label>
+      <div class="seg" id="s-merk">
+        <button data-value="20000">Gemütlich</button>
+        <button data-value="14000" class="active">Normal</button>
+        <button data-value="9000">Zügig</button>
+      </div>
+    </div>
+    <div class="field"><label>Gebäude zu Beginn</label>
+      <div class="seg" id="s-anzahl">
+        <button data-value="4">4</button>
+        <button data-value="5" class="active">5</button>
+        <button data-value="6">6</button>
+      </div>
+    </div>
+    <div class="panel-buttons">
+      <button class="btn primary" id="btn-uebernehmen">Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var cfg = GJ.load("stadtplan-cfg", { karten: 4, merk: 14000, anzahl: 5 });
+
+/* g = Geschlecht, damit die Fragen sauberes Deutsch ergeben */
+var ORTE = [
+  { icon: "⛪", name: "Kirche", g: "f" },
+  { icon: "🚉", name: "Bahnhof", g: "m" },
+  { icon: "🍞", name: "Bäckerei", g: "f" },
+  { icon: "⛲", name: "Brunnen", g: "m" },
+  { icon: "🏫", name: "Schule", g: "f" },
+  { icon: "🏦", name: "Bank", g: "f" },
+  { icon: "🌳", name: "Park", g: "m" },
+  { icon: "🏥", name: "Apotheke", g: "f" },
+  { icon: "🏛️", name: "Rathaus", g: "n" },
+  { icon: "🏪", name: "Laden", g: "m" }
+];
+function derDieDas(o) { return (o.g === "f" ? "die " : o.g === "n" ? "das " : "der ") + o.name; }
+function anDem(o) { return o.g === "f" ? "an der " + o.name : "am " + o.name; }
+function zuDem(o) { return o.g === "f" ? "zur " + o.name : "zum " + o.name; }
+var RICHTUNGEN = [
+  { id: "vorne", name: "vorne" },
+  { id: "rechts", name: "rechts" },
+  { id: "hinten", name: "hinten" },
+  { id: "links", name: "links" }
+];
+
+var c = GJ.el("c"), ctx = c.getContext("2d");
+var W = 560, RAND = 70, N = 5;   /* 5x5 Kreuzungen */
+
+var treppe, karteNr, richtig, gefragt, orte, fragen, frageNr, anzahl;
+var laeuft = false, balkenAnim = null, merkTimer = null;
+
+function farbe(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim() || "#888"; }
+function gitterX(i) { return RAND + (i * (W - 2 * RAND)) / (N - 1); }
+
+/* ---------------- Karte bauen ---------------- */
+function baueKarte() {
+  var plaetze = [];
+  for (var i = 0; i < N; i++) for (var j = 0; j < N; j++) plaetze.push({ i: i, j: j });
+  GJ.shuffle(plaetze);
+  var gewaehlt = [];
+  plaetze.forEach(function (p) {
+    if (gewaehlt.length >= anzahl) return;
+    var weit = gewaehlt.every(function (g) { return Math.abs(g.i - p.i) + Math.abs(g.j - p.j) >= 3; });
+    if (weit) gewaehlt.push(p);
+  });
+  while (gewaehlt.length < anzahl) {                    /* Notfalls auffüllen */
+    var p2 = plaetze[Math.floor(Math.random() * plaetze.length)];
+    if (!gewaehlt.some(function (g) { return g.i === p2.i && g.j === p2.j; })) gewaehlt.push(p2);
+  }
+  var auswahl = GJ.shuffle(ORTE.slice()).slice(0, anzahl);
+  orte = gewaehlt.map(function (p, k) {
+    return { i: p.i, j: p.j, x: gitterX(p.i), y: gitterX(p.j), icon: auswahl[k].icon, name: auswahl[k].name, g: auswahl[k].g };
+  });
+}
+
+function zeichneKarte(sichtbar) {
+  ctx.fillStyle = farbe("--surface");
+  ctx.fillRect(0, 0, W, W);
+  if (!sichtbar) {
+    ctx.fillStyle = farbe("--surface2");
+    ctx.fillRect(0, 0, W, W);
+    ctx.fillStyle = farbe("--muted");
+    ctx.font = "600 22px system-ui, sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("Der Plan ist eingepackt.", W / 2, W / 2 - 10);
+    ctx.font = "400 17px system-ui, sans-serif";
+    ctx.fillText("Jetzt aus dem Kopf antworten.", W / 2, W / 2 + 20);
+    return;
+  }
+  /* Blockflächen */
+  ctx.fillStyle = farbe("--surface2");
+  for (var a = 0; a < N - 1; a++) for (var b = 0; b < N - 1; b++) {
+    ctx.fillRect(gitterX(a) + 12, gitterX(b) + 12, gitterX(1) - gitterX(0) - 24, gitterX(1) - gitterX(0) - 24);
+  }
+  /* Straßen */
+  ctx.strokeStyle = farbe("--border"); ctx.lineWidth = 3;
+  for (var k = 0; k < N; k++) {
+    ctx.beginPath(); ctx.moveTo(gitterX(k), RAND - 24); ctx.lineTo(gitterX(k), W - RAND + 24); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(RAND - 24, gitterX(k)); ctx.lineTo(W - RAND + 24, gitterX(k)); ctx.stroke();
+  }
+  /* Windrose */
+  ctx.fillStyle = farbe("--muted");
+  ctx.font = "700 20px system-ui, sans-serif"; ctx.textAlign = "center";
+  ctx.fillText("N", W / 2, 26);
+  ctx.beginPath(); ctx.moveTo(W / 2, 32); ctx.lineTo(W / 2, 46); ctx.strokeStyle = farbe("--muted"); ctx.lineWidth = 2; ctx.stroke();
+  /* Gebäude */
+  orte.forEach(function (o) {
+    ctx.beginPath(); ctx.arc(o.x, o.y, 27, 0, 7);
+    ctx.fillStyle = farbe("--surface"); ctx.fill();
+    ctx.strokeStyle = farbe("--accent"); ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.font = "26px system-ui, 'Segoe UI Emoji', sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(o.icon, o.x, o.y + 9);
+    ctx.fillStyle = farbe("--text");
+    ctx.font = "600 14px system-ui, sans-serif";
+    ctx.fillText(o.name, o.x, o.y + 46);
+  });
+}
+
+/* ---------------- Fragen bauen ---------------- */
+function richtungZwischen(a, b, ziel) {
+  var hx = b.x - a.x, hy = b.y - a.y;
+  var vx = ziel.x - a.x, vy = ziel.y - a.y;
+  var dot = hx * vx + hy * vy;
+  var cross = hx * vy - hy * vx;
+  var w = Math.atan2(cross, dot) * 180 / Math.PI;   /* >0 = rechts (Bildschirm) */
+  return w;
+}
+
+function baueFragen() {
+  fragen = [];
+  var versuche = 0;
+  while (fragen.length < 2 && versuche++ < 300) {
+    var drei = GJ.shuffle(orte.slice()).slice(0, 3);
+    var a = drei[0], b = drei[1], z = drei[2];
+    var w = richtungZwischen(a, b, z);
+    var ab = Math.abs(w);
+    if (Math.min(Math.abs(ab - 45), Math.abs(ab - 135)) < 22) continue;   /* zu grenzwertig */
+    if (Math.hypot(z.x - a.x, z.y - a.y) < 100) continue;
+    var antwort = ab < 45 ? "vorne" : (ab > 135 ? "hinten" : (w > 0 ? "rechts" : "links"));
+    fragen.push({
+      art: "richtung",
+      text: "Du stehst " + anDem(a) + " und schaust " + zuDem(b) +
+            ".<br>Wo liegt <em>" + derDieDas(z) + "</em>?",
+      antwort: antwort,
+      auswahl: RICHTUNGEN.map(function (r) { return { id: r.id, text: r.name }; })
+    });
+  }
+  /* Eine Frage nach der Himmelsrichtung */
+  var richtungen = [
+    { id: "n", text: "am weitesten im Norden", wert: function (o) { return -o.y; } },
+    { id: "s", text: "am weitesten im Süden", wert: function (o) { return o.y; } },
+    { id: "o", text: "am weitesten im Osten", wert: function (o) { return o.x; } },
+    { id: "w", text: "am weitesten im Westen", wert: function (o) { return -o.x; } }
+  ];
+  var r = GJ.pick(richtungen);
+  var sortiert = orte.slice().sort(function (x, y) { return r.wert(y) - r.wert(x); });
+  if (r.wert(sortiert[0]) - r.wert(sortiert[1]) > 40) {
+    fragen.push({
+      art: "himmel",
+      text: "Welches Gebäude lag <em>" + r.text + "</em>?",
+      antwort: sortiert[0].name,
+      auswahl: GJ.shuffle(orte.slice()).slice(0, 4).concat([{ name: sortiert[0].name, icon: sortiert[0].icon }])
+        .filter(function (o, i, arr) { return arr.findIndex(function (q) { return q.name === o.name; }) === i; })
+        .slice(0, 4)
+        .map(function (o) { return { id: o.name, text: o.icon + " " + o.name }; })
+    });
+    /* sicherstellen, dass die richtige Antwort dabei ist */
+    var letzte = fragen[fragen.length - 1];
+    if (!letzte.auswahl.some(function (x) { return x.id === letzte.antwort; })) {
+      letzte.auswahl[3] = { id: sortiert[0].name, text: sortiert[0].icon + " " + sortiert[0].name };
+      GJ.shuffle(letzte.auswahl);
+    }
+  }
+  GJ.shuffle(fragen);
+}
+
+/* ---------------- Ablauf ---------------- */
+function start() {
+  anzahl = cfg.anzahl;
+  treppe = new GJ.Treppe({ start: cfg.merk, min: 2500, max: 30000, faktor: 0.85, nDown: 1 });
+  karteNr = 0; richtig = 0; gefragt = 0;
+  laeuft = true;
+  GJ.el("start-box").style.display = "none";
+  GJ.el("spiel").style.display = "";
+  naechsteKarte();
+}
+
+function naechsteKarte() {
+  if (karteNr >= cfg.karten) return ende();
+  karteNr++;
+  baueKarte();
+  baueFragen();
+  if (!fragen.length) return naechsteKarte();
+  frageNr = 0;
+  hud();
+  GJ.el("frage").innerHTML = "Präge dir den Plan ein …";
+  GJ.el("antworten").innerHTML = "";
+  zeichneKarte(true);
+
+  var balken = GJ.el("balken"), fuellung = balken.firstElementChild;
+  balken.style.visibility = "";
+  var dauer = treppe.wert, t0 = performance.now();
+  cancelAnimationFrame(balkenAnim);
+  (function laufen() {
+    var rest = 1 - (performance.now() - t0) / dauer;
+    fuellung.style.width = Math.max(0, rest * 100) + "%";
+    if (rest > 0 && laeuft) balkenAnim = requestAnimationFrame(laufen);
+  })();
+  clearTimeout(merkTimer);
+  merkTimer = setTimeout(function () {
+    if (!laeuft) return;
+    balken.style.visibility = "hidden";
+    zeichneKarte(false);
+    zeigeFrage();
+  }, dauer);
+
+  /* Vorzeitig weiter per Klick auf die Karte */
+  c.onclick = function () {
+    if (GJ.el("balken").style.visibility === "hidden") return;
+    clearTimeout(merkTimer);
+    GJ.el("balken").style.visibility = "hidden";
+    zeichneKarte(false);
+    zeigeFrage();
+  };
+}
+
+function zeigeFrage() {
+  if (frageNr >= fragen.length) {
+    /* Karte fertig – Schwierigkeit anpassen */
+    var quoteKarte = kartenRichtig / fragen.length;
+    if (quoteKarte >= 0.99) {
+      treppe.richtig();
+      if (treppe.wert <= 4000 && anzahl < 8) { anzahl++; treppe.wert = Math.min(treppe.max, treppe.wert * 1.6); }
+    } else if (quoteKarte < 0.5) {
+      treppe.falsch();
+    }
+    kartenRichtig = 0;
+    return setTimeout(naechsteKarte, 700);
+  }
+  var f = fragen[frageNr];
+  GJ.el("frage").innerHTML = f.text;
+  var box = GJ.el("antworten");
+  box.innerHTML = "";
+  f.auswahl.forEach(function (a) {
+    var b = document.createElement("button");
+    b.className = "btn";
+    b.textContent = a.text;
+    b.addEventListener("click", function () { pruefe(f, a, b); });
+    box.appendChild(b);
+  });
+}
+
+var kartenRichtig = 0;
+
+function pruefe(f, a, knopf) {
+  GJ.$$("#antworten .btn").forEach(function (b) { b.disabled = true; });
+  var gut = a.id === f.antwort;
+  gefragt++;
+  if (gut) { richtig++; kartenRichtig++; knopf.classList.add("primary"); }
+  else {
+    knopf.style.borderColor = "var(--danger)";
+    GJ.$$("#antworten .btn").forEach(function (b, i) {
+      if (f.auswahl[i].id === f.antwort) b.classList.add("primary");
+    });
+  }
+  GJ.pieps(gut);
+  hud();
+  frageNr++;
+  setTimeout(zeigeFrage, gut ? 700 : 1500);
+}
+
+function ende() {
+  laeuft = false;
+  clearTimeout(merkTimer); cancelAnimationFrame(balkenAnim);
+  c.onclick = null;
+  var quote = gefragt ? richtig / gefragt : 0;
+  var schwelle = treppe.schwelle();
+  var zeitAnteil = (Math.log(30000) - Math.log(schwelle)) / (Math.log(30000) - Math.log(2500));
+  var gebaeudeBonus = (anzahl - 4) * 6;
+  var punkte = GJ.clamp(zeitAnteil * 85 + gebaeudeBonus, 0, 100) * (0.35 + 0.65 * quote);
+  GJ.el("start-box").style.display = "";
+  GJ.el("spiel").style.display = "none";
+  GJ.rahmen.fertig({
+    punkte: punkte,
+    roh: Math.round(schwelle / 100) / 10,
+    titel: richtig + " von " + gefragt + " Fragen richtig",
+    text: "Zuletzt hattest du " + (Math.round(schwelle / 100) / 10) + " Sekunden Zeit, dir " + anzahl + " Gebäude einzuprägen.",
+    rohText: cfg.karten + " Karten · " + anzahl + " Gebäude zuletzt"
+  });
+}
+
+function hud() {
+  GJ.el("h-karte").textContent = karteNr + "/" + cfg.karten;
+  GJ.el("h-richtig").textContent = richtig;
+  GJ.el("h-merk").textContent = laeuft ? (Math.round(treppe.wert / 100) / 10) + " s" : "–";
+  GJ.el("h-best").textContent = GJ.bestwert("stadtplan") || "–";
+}
+
+document.addEventListener("keydown", function (e) {
+  if (document.querySelector(".overlay.open")) return;
+  if (!laeuft && e.key === "Enter") GJ.el("btn-start").click();
+  var b = GJ.$$("#antworten .btn")[+e.key - 1];
+  if (b && !b.disabled && e.key >= "1" && e.key <= "4") b.click();
+});
+
+["s-karten", "s-merk", "s-anzahl"].forEach(function (id) { GJ.seg(GJ.el(id)); });
+GJ.el("btn-einst").addEventListener("click", function () {
+  GJ.segSet(GJ.el("s-karten"), cfg.karten);
+  GJ.segSet(GJ.el("s-merk"), cfg.merk);
+  GJ.segSet(GJ.el("s-anzahl"), cfg.anzahl);
+  GJ.open("ov-einst");
+});
+GJ.el("btn-uebernehmen").addEventListener("click", function () {
+  cfg = {
+    karten: +GJ.segVal(GJ.el("s-karten")),
+    merk: +GJ.segVal(GJ.el("s-merk")),
+    anzahl: +GJ.segVal(GJ.el("s-anzahl"))
+  };
+  GJ.save("stadtplan-cfg", cfg);
+  GJ.close("ov-einst");
+  laeuft = false;
+  clearTimeout(merkTimer);
+  GJ.el("start-box").style.display = "";
+  GJ.el("spiel").style.display = "none";
+  hud();
+});
+GJ.el("btn-start").addEventListener("click", start);
+
+document.addEventListener("DOMContentLoaded", function () {
+  GJ.rahmen.start("stadtplan", start);
+  hud();
+});
+</script>
+</body>
+</html>

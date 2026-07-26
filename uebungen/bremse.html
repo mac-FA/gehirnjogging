@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bremse – Gehirnjogging</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚦</text></svg>">
+<link rel="stylesheet" href="../css/common.css">
+<script src="../js/common.js"></script>
+<script src="../js/uebungen.js"></script>
+<style>
+#buehne{
+  position:relative;width:min(94vw,520px);height:190px;border-radius:var(--radius);
+  background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+}
+#wort{font-size:clamp(2.2rem,10vw,3.6rem);font-weight:900;letter-spacing:.04em}
+#stopp{
+  position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(160,40,30,.14);
+}
+#stopp.an{display:flex}
+#stopp svg{width:130px;height:130px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))}
+.farbtasten{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;width:min(94vw,520px)}
+.farbtaste{
+  min-height:80px;border-radius:14px;border:2px solid var(--border);
+  font-weight:800;font-size:1rem;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.45);
+}
+.farbtaste:hover{filter:brightness(1.08)}
+.farbtaste:disabled{opacity:.5}
+@media (max-width:520px){ .farbtasten{grid-template-columns:repeat(2,1fr)} }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="icon-btn" href="../index.html" title="Zur Übersicht">🏠</a>
+  <h1><span>🚦</span> Bremse</h1>
+  <div class="actions">
+    <button class="icon-btn" id="btn-einst" title="Einstellungen">⚙️</button>
+    <button class="icon-btn" id="btn-theme" title="Hell/Dunkel">🌙</button>
+    <button class="icon-btn" id="btn-fs" title="Vollbild">⛶</button>
+  </div>
+</header>
+
+<main class="page center">
+  <div class="hud">
+    <div class="stat"><b id="h-runde">0/40</b><span>Runde</span></div>
+    <div class="stat"><b id="h-richtig">0</b><span>Richtig</span></div>
+    <div class="stat"><b id="h-stopp">0/0</b><span>Gebremst</span></div>
+    <div class="stat"><b id="h-best">–</b><span>Bestwert</span></div>
+  </div>
+
+  <div id="start-box" class="center" style="text-align:center">
+    <p style="color:var(--muted);max-width:52ch;margin:0">
+      Ein Farbwort erscheint. Drücke die Taste in der <b>Farbe der Schrift</b> –
+      nicht die des Wortes. Erscheint aber ein <b>Stoppschild</b>, dann tu gar
+      nichts und lass die Hand liegen.
+    </p>
+    <button class="btn primary gross" id="btn-start" style="min-width:220px">▶ Start</button>
+  </div>
+
+  <div id="spiel" style="display:none" class="center">
+    <div id="buehne">
+      <div id="wort"></div>
+      <div id="stopp"><svg viewBox="0 0 100 100"><polygon points="30,4 70,4 96,30 96,70 70,96 30,96 4,70 4,30" fill="#b3382c" stroke="#fff" stroke-width="5"/><rect x="22" y="44" width="56" height="12" rx="3" fill="#fff"/></svg></div>
+    </div>
+    <div class="ansage" id="ansage">&nbsp;</div>
+    <div class="farbtasten" id="tasten"></div>
+  </div>
+
+  <details class="rules">
+    <summary>📖 So geht’s</summary>
+    <p>Das Wort „ROT“ kann in blauer Schrift stehen – dann ist <b>Blau</b> richtig.
+    Das Lesen läuft automatisch ab und muss unterdrückt werden; genau das ist die
+    Übung. Mit Tastatur: die Tasten <b>1</b> bis <b>4</b> in der Reihenfolge der
+    Schaltflächen.</p>
+    <p>In etwa jeder vierten Runde erscheint kurz nach dem Wort ein <b>Stoppschild</b>.
+    Dann darfst du nicht mehr drücken – auch wenn die Hand schon unterwegs ist.
+    Das Schild kommt immer später, je besser du bremst, und früher, wenn es misslingt.
+    So findet die Übung heraus, wie schnell deine Bremse arbeitet.</p>
+    <p>Am Ende siehst du deine <b>Stoppzeit</b>: die geschätzte Zeit, die dein Kopf
+    braucht, um eine bereits gestartete Bewegung noch abzufangen. Kürzer ist besser;
+    zwischen 200 und 300 Millisekunden ist ein üblicher Wert.</p>
+  </details>
+</main>
+
+<div class="overlay" id="ov-einst" data-dismiss>
+  <div class="panel">
+    <h2>Einstellungen</h2>
+    <div class="field"><label>Stoppschild</label>
+      <div class="seg" id="s-stopp">
+        <button data-value="1" class="active">Ja</button>
+        <button data-value="0">Nur Farben</button>
+      </div>
+      <small>Ohne Stoppschild bleibt die Farb-Wort-Aufgabe allein – ein guter Einstieg.</small>
+    </div>
+    <div class="field"><label>Runden</label>
+      <div class="seg" id="s-runden">
+        <button data-value="24">24</button>
+        <button data-value="40" class="active">40</button>
+        <button data-value="60">60</button>
+      </div>
+    </div>
+    <div class="field"><label for="c-namen">Farbnamen auf den Tasten</label>
+      <input type="checkbox" id="c-namen">
+      <small>Hilfreich, wenn sich Farben schwer unterscheiden lassen.</small>
+    </div>
+    <div class="panel-buttons">
+      <button class="btn primary" id="btn-uebernehmen">Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var cfg = GJ.load("bremse-cfg", { stopp: 1, runden: 40, namen: false });
+
+var FARBEN = [
+  { id: "rot", name: "ROT", hex: "#c0392b" },
+  { id: "blau", name: "BLAU", hex: "#2c6fae" },
+  { id: "gruen", name: "GRÜN", hex: "#3d7a4e" },
+  { id: "gelb", name: "GELB", hex: "#c9962b" }
+];
+
+var runde, richtig, laeuft = false, offen = false, tStart = 0;
+var tinte, istStoppRunde, ssd, stoppTimer = null, deadline = null, gestoppt;
+var stoppVersuche = 0, stoppErfolg = 0, goZeiten = [], goFalsch = 0, ssdWerte = [];
+
+function baueTasten() {
+  var box = GJ.el("tasten");
+  box.innerHTML = "";
+  FARBEN.forEach(function (f, i) {
+    var b = document.createElement("button");
+    b.className = "farbtaste";
+    b.style.background = f.hex;
+    b.textContent = cfg.namen ? f.name : (i + 1) + "";
+    b.setAttribute("aria-label", f.name);
+    b.addEventListener("click", function () { antwort(f.id); });
+    box.appendChild(b);
+  });
+}
+
+function naechste() {
+  if (runde >= cfg.runden) return ende();
+  runde++;
+  var wort = GJ.pick(FARBEN);
+  tinte = Math.random() < 0.68 ? GJ.pick(FARBEN.filter(function (f) { return f.id !== wort.id; })) : wort;
+  istStoppRunde = cfg.stopp && Math.random() < 0.26;
+  gestoppt = false;
+
+  var w = GJ.el("wort");
+  w.textContent = wort.name;
+  w.style.color = tinte.hex;
+  GJ.el("stopp").classList.remove("an");
+  GJ.el("ansage").innerHTML = "&nbsp;";
+  GJ.el("ansage").className = "ansage";
+  GJ.$$(".farbtaste").forEach(function (b) { b.disabled = false; });
+
+  offen = true;
+  tStart = performance.now();
+  hud();
+
+  if (istStoppRunde) {
+    stoppVersuche++;
+    stoppTimer = setTimeout(function () {
+      if (!offen) return;
+      GJ.el("stopp").classList.add("an");
+    }, ssd);
+  }
+  deadline = setTimeout(function () {
+    if (!offen) return;
+    if (istStoppRunde) auswerten(null, true);
+    else auswerten(null, false);
+  }, 2200);
+}
+
+function antwort(id) {
+  if (!offen) return;
+  auswerten(id, false);
+}
+
+function auswerten(id, zeitAbgelaufen) {
+  offen = false;
+  clearTimeout(stoppTimer); clearTimeout(deadline);
+  var rt = performance.now() - tStart;
+  var an = GJ.el("ansage");
+  GJ.$$(".farbtaste").forEach(function (b) { b.disabled = true; });
+  var gut;
+
+  if (istStoppRunde) {
+    gut = (id === null);
+    if (gut) {
+      stoppErfolg++;
+      ssd = GJ.clamp(ssd + 55, 40, 900);      /* geglückt → Schild kommt später */
+      an.textContent = "✓ Gut gebremst";
+      an.className = "ansage gut";
+    } else {
+      ssd = GJ.clamp(ssd - 55, 40, 900);      /* misslungen → früher warnen */
+      an.textContent = "✗ Das war ein Stoppschild";
+      an.className = "ansage schlecht";
+    }
+    ssdWerte.push(ssd);
+  } else if (rt < 150 && id !== null) {
+    /* Unter 150 ms kann niemand gelesen haben – das war geraten, nicht geantwortet */
+    gut = false; goFalsch++;
+    an.textContent = "✗ Zu früh gedrückt – erst schauen";
+    an.className = "ansage schlecht";
+  } else {
+    gut = (id === tinte.id);
+    if (gut) { richtig++; goZeiten.push(rt); an.textContent = "✓ " + Math.round(rt) + " ms"; an.className = "ansage gut"; }
+    else {
+      goFalsch++;
+      an.textContent = zeitAbgelaufen ? "⏱ Zu langsam – die Schrift war " + farbName(tinte.id)
+                                      : "✗ Die Schrift war " + farbName(tinte.id);
+      an.className = "ansage schlecht";
+    }
+  }
+  if (istStoppRunde && gut) richtig++;
+  GJ.pieps(gut);
+  hud();
+  setTimeout(naechste, gut ? 700 : 1250);
+}
+
+function farbName(id) {
+  return FARBEN.filter(function (f) { return f.id === id; })[0].name.toLowerCase();
+}
+
+function start() {
+  runde = 0; richtig = 0; ssd = 220;
+  stoppVersuche = 0; stoppErfolg = 0; goZeiten = []; goFalsch = 0; ssdWerte = [];
+  laeuft = true;
+  baueTasten();
+  GJ.el("start-box").style.display = "none";
+  GJ.el("spiel").style.display = "";
+  setTimeout(naechste, 400);
+}
+
+function mittel(a) { return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : 0; }
+
+function ende() {
+  laeuft = false; offen = false;
+  var goQuote = (goZeiten.length) / Math.max(1, goZeiten.length + goFalsch);
+  var mittlereSSD = ssdWerte.length ? mittel(ssdWerte.slice(-8)) : 0;
+  var goRT = mittel(goZeiten) || 900;
+  var ssrt = Math.round(GJ.clamp(goRT - mittlereSSD, 80, 700));
+  var punkte;
+  if (cfg.stopp && ssdWerte.length >= 4) {
+    var bremsPunkte = GJ.clamp(100 * (520 - ssrt) / 380, 0, 100);
+    /* Die Schätzung der Stoppzeit trägt nur, wenn ungefähr die Hälfte der
+       Stoppschilder auch beachtet wurde – so ist das Verfahren gebaut.
+       Wer fast nie bremst, bekommt dafür keine guten Punkte. */
+    var stoppQuote = stoppErfolg / Math.max(1, stoppVersuche);
+    if (stoppQuote < 0.3) bremsPunkte = Math.min(bremsPunkte, 100 * stoppQuote);
+    punkte = 0.55 * bremsPunkte + 0.45 * (goQuote * 100);
+  } else {
+    var tempoPunkte = GJ.clamp(100 * (1400 - goRT) / 900, 0, 100);
+    punkte = (0.5 * tempoPunkte + 0.5 * goQuote * 100) * 0.85;
+  }
+  GJ.el("start-box").style.display = "";
+  GJ.el("spiel").style.display = "none";
+  GJ.rahmen.fertig({
+    punkte: punkte,
+    roh: cfg.stopp ? ssrt : Math.round(goRT),
+    titel: richtig + " von " + cfg.runden + " richtig",
+    text: cfg.stopp
+      ? "Deine Stoppzeit liegt bei etwa " + ssrt + " ms – so lange braucht dein Kopf, um eine schon begonnene Bewegung abzufangen."
+      : "Im Schnitt " + Math.round(goRT) + " ms je Farbe.",
+    rohText: (cfg.stopp ? stoppErfolg + " von " + stoppVersuche + " Stoppschildern beachtet · " : "") +
+             "Farbe im Schnitt " + Math.round(goRT) + " ms"
+  });
+}
+
+function hud() {
+  GJ.el("h-runde").textContent = runde + "/" + cfg.runden;
+  GJ.el("h-richtig").textContent = richtig;
+  GJ.el("h-stopp").textContent = stoppErfolg + "/" + stoppVersuche;
+  GJ.el("h-best").textContent = GJ.bestwert("bremse") || "–";
+}
+
+document.addEventListener("keydown", function (e) {
+  if (document.querySelector(".overlay.open")) return;
+  if (offen && e.key >= "1" && e.key <= "4") {
+    var b = GJ.$$(".farbtaste")[+e.key - 1];
+    if (b && !b.disabled) b.click();
+  } else if (!laeuft && e.key === "Enter") GJ.el("btn-start").click();
+});
+
+["s-stopp", "s-runden"].forEach(function (id) { GJ.seg(GJ.el(id)); });
+GJ.el("btn-einst").addEventListener("click", function () {
+  GJ.segSet(GJ.el("s-stopp"), cfg.stopp);
+  GJ.segSet(GJ.el("s-runden"), cfg.runden);
+  GJ.el("c-namen").checked = cfg.namen;
+  GJ.open("ov-einst");
+});
+GJ.el("btn-uebernehmen").addEventListener("click", function () {
+  cfg = {
+    stopp: +GJ.segVal(GJ.el("s-stopp")),
+    runden: +GJ.segVal(GJ.el("s-runden")),
+    namen: GJ.el("c-namen").checked
+  };
+  GJ.save("bremse-cfg", cfg);
+  GJ.close("ov-einst");
+  laeuft = false; offen = false;
+  clearTimeout(stoppTimer); clearTimeout(deadline);
+  GJ.el("start-box").style.display = "";
+  GJ.el("spiel").style.display = "none";
+  hud();
+});
+GJ.el("btn-start").addEventListener("click", start);
+
+document.addEventListener("DOMContentLoaded", function () {
+  GJ.rahmen.start("bremse", start);
+  baueTasten();
+  hud();
+});
+</script>
+</body>
+</html>

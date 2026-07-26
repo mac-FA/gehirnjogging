@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Über dieses Programm – Gehirnjogging</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+<link rel="stylesheet" href="css/common.css">
+<script src="js/common.js"></script>
+<script src="js/uebungen.js" defer></script>
+<style>
+.text{max-width:68ch;margin:0 auto}
+.text h2{margin:32px 0 10px;font-size:1.25rem}
+.text p{color:var(--muted);line-height:1.65}
+.text b{color:var(--text)}
+.kasten{
+  background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--accent);
+  border-radius:12px;padding:14px 18px;margin:18px 0;
+}
+.kasten p{margin:0}
+table.q{width:100%;border-collapse:collapse;margin-top:10px;font-size:.94rem}
+table.q td{padding:9px 6px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--muted)}
+table.q td:first-child{font-weight:700;color:var(--text);white-space:nowrap;padding-right:14px}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="icon-btn" href="index.html" title="Zur Übersicht">🏠</a>
+  <h1><span>ℹ️</span> Über dieses Programm</h1>
+  <div class="actions">
+    <button class="icon-btn" id="btn-theme" title="Hell/Dunkel">🌙</button>
+    <button class="icon-btn" id="btn-fs" title="Vollbild">⛶</button>
+  </div>
+</header>
+
+<main class="page">
+  <div class="text">
+
+    <h2>Was dieses Programm kann – und was nicht</h2>
+    <p>Sagen wir es gleich zu Beginn: <b>Gehirnjogging macht vor allem gut im
+    Gehirnjogging.</b> Große Übersichtsarbeiten über Hunderte von Studien zeigen
+    übereinstimmend, dass sich Übungen wie diese zuverlässig verbessern lassen – dass
+    dieser Zugewinn aber kaum auf andere Fähigkeiten überspringt. Wer verspricht,
+    ein Spiel mache allgemein klüger oder schütze sicher vor Demenz, verspricht zu
+    viel; ein bekannter Anbieter musste dafür sogar Strafe zahlen.</p>
+
+    <div class="kasten">
+      <p>Deshalb steht hier kein Versprechen. Was du siehst, ist dein Fortschritt in
+      genau diesen Aufgaben. Dass Üben Freude macht, den Kopf beschäftigt und dem
+      Tag eine kleine Struktur gibt, ist Grund genug.</p>
+    </div>
+
+    <h2>Warum trotzdem gerade diese acht Übungen</h2>
+    <p>Ausgewählt wurden sie nach dem, was in der Forschung am ehesten Bestand hat.
+    Vier Dinge waren dabei ausschlaggebend:</p>
+    <p><b>1. Anpassung an dein Können.</b> Jede Übung wird schwerer, sobald du sie
+    beherrschst, und leichter, wenn es nicht läuft. Genau dieses Mitwachsen ist in
+    Übersichtsarbeiten das Merkmal, das wirksame von unwirksamen Programmen trennt.
+    Ein Spiel, das man kann, trainiert nicht mehr – es unterhält nur noch.</p>
+    <p><b>2. Vielfalt statt Drill.</b> Programme, die mehrere Bereiche abdecken,
+    schneiden besser ab als das ewige Wiederholen einer einzigen Aufgabe.</p>
+    <p><b>3. Zwei Dinge auf einmal.</b> Doppelaufgaben zeigen in Studien mit älteren
+    Menschen die deutlichsten Wirkungen – deutlicher als reines Aufgabenlösen.</p>
+    <p><b>4. Maßhalten.</b> Zwei bis drei Einheiten pro Woche sind das Optimum.
+    Häufiger zu üben brachte in den Auswertungen keinen zusätzlichen Nutzen. Deshalb
+    zählt die Startseite bis drei – und hört dann auf zu drängen.</p>
+
+    <h2>Woher die einzelnen Übungen stammen</h2>
+    <table class="q" id="tabelle"></table>
+
+    <h2>Was nachweislich noch mehr hilft</h2>
+    <p>Ehrlich gesagt: <b>Bewegung, Gesellschaft und etwas wirklich Neues zu lernen</b>
+    stehen in der Forschung besser da als jedes Bildschirmtraining. In einer
+    bekannten Untersuchung verbesserte sich das Gedächtnis älterer Menschen dann,
+    wenn sie drei Monate lang etwas anspruchsvolles Neues lernten – Fotografieren
+    oder Quilten. Wer nur nett zusammensaß oder leichte Rätsel löste, gewann nichts.</p>
+    <p>Und in einer Langzeitbeobachtung waren <b>Lesen, Brett- und Kartenspiele, ein
+    Instrument und Tanzen</b> mit einem geringeren Demenzrisiko verbunden – Tanzen als
+    einzige körperliche Betätigung, vermutlich weil dabei Bewegung und Denken
+    zusammenkommen.</p>
+    <p>Dieses Programm ist also als Ergänzung gedacht, nicht als Ersatz für einen
+    Spaziergang mit einer Freundin.</p>
+
+    <h2>Deine Daten</h2>
+    <p>Alles bleibt auf diesem Gerät, im Speicher des Browsers. Nichts wird
+    verschickt, es gibt kein Konto und keine Anmeldung. Wer den Verlauf löschen
+    möchte, findet den Knopf in den Einstellungen auf der Startseite.</p>
+
+    <p style="margin-top:34px;font-size:.9rem">
+      Die ausführliche Fassung der Literaturrecherche mit allen Quellenangaben liegt
+      im Projektordner unter <b>RECHERCHE.md</b>.
+    </p>
+  </div>
+</main>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var t = document.getElementById("tabelle");
+  GJ.UEBUNGEN.forEach(function (u) {
+    var tr = document.createElement("tr");
+    tr.innerHTML = "<td>" + u.icon + " " + u.name + "</td><td>" + u.quelle +
+      " · trainiert: " + u.bereich.toLowerCase() + "</td>";
+    t.appendChild(tr);
+  });
+});
+</script>
+</body>
+</html>

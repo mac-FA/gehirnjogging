@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marktstand – Gehirnjogging</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛒</text></svg>">
+<link rel="stylesheet" href="../css/common.css">
+<script src="../js/common.js"></script>
+<script src="../js/uebungen.js"></script>
+<style>
+.plaetze{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;width:min(96vw,620px)}
+.platz{
+  background:var(--surface);border:2px solid var(--border);border-radius:14px;
+  padding:12px;min-height:132px;display:flex;flex-direction:column;gap:8px;
+  cursor:pointer;transition:border-color .12s,transform .12s;text-align:left;
+}
+.platz.leer{opacity:.45;cursor:default;justify-content:center;align-items:center;color:var(--muted)}
+.platz.gewaehlt{border-color:var(--accent);transform:translateY(-3px);box-shadow:0 0 0 3px var(--accent-soft)}
+.platz.fertig{border-color:var(--good);background:var(--accent-soft)}
+.platz .kopf{display:flex;align-items:center;gap:8px;font-weight:700}
+.platz .kopf span:first-child{font-size:1.6rem}
+.wunsch{display:flex;gap:6px;flex-wrap:wrap;font-size:1.5rem;line-height:1}
+.wunsch i{opacity:.28;font-style:normal}
+.geduld{height:9px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);overflow:hidden;margin-top:auto}
+.geduld i{display:block;height:100%;background:var(--good);width:100%}
+.geduld.mittel i{background:var(--warn)}
+.geduld.knapp i{background:var(--danger)}
+.waren{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;width:min(96vw,620px)}
+.waren .btn{min-height:66px;font-size:1.7rem;padding:4px}
+@media (max-width:520px){ .waren{grid-template-columns:repeat(3,1fr)} }
+#ofen{
+  width:min(96vw,620px);display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  background:var(--surface);border:2px solid var(--border);border-radius:14px;padding:10px 14px;
+}
+#ofen .balken{min-width:110px}
+#ofen.fertig{border-color:var(--warn);background:var(--accent-soft);animation:blinken 1s infinite}
+@keyframes blinken{50%{border-color:var(--danger)}}
+#ofen .balken{flex:1;height:9px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);overflow:hidden}
+#ofen .balken i{display:block;height:100%;background:var(--warn);width:0}
+#ofen button{min-height:46px}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="icon-btn" href="../index.html" title="Zur Übersicht">🏠</a>
+  <h1><span>🛒</span> Marktstand</h1>
+  <div class="actions">
+    <button class="icon-btn" id="btn-einst" title="Einstellungen">⚙️</button>
+    <button class="icon-btn" id="btn-theme" title="Hell/Dunkel">🌙</button>
+    <button class="icon-btn" id="btn-fs" title="Vollbild">⛶</button>
+  </div>
+</header>
+
+<main class="page center">
+  <div class="hud">
+    <div class="stat"><b id="h-zeit">–</b><span>Restzeit</span></div>
+    <div class="stat"><b id="h-bedient">0</b><span>Bedient</span></div>
+    <div class="stat"><b id="h-weg">0</b><span>Weggegangen</span></div>
+    <div class="stat"><b id="h-stufe">1</b><span>Andrang</span></div>
+  </div>
+
+  <div id="start-box" class="center" style="text-align:center">
+    <p style="color:var(--muted);max-width:52ch;margin:0">
+      Am Stand warten mehrere Leute. Tippe zuerst die <b>Kundschaft</b> an,
+      dann die <b>Waren</b>, die sie möchte. Und der Ofen läuft nebenher –
+      das Brot will rechtzeitig herausgeholt werden.
+    </p>
+    <button class="btn primary gross" id="btn-start" style="min-width:220px">▶ Start</button>
+  </div>
+
+  <div id="spiel" style="display:none" class="center">
+    <div id="ofen">
+      <span style="font-size:1.6rem">🔥</span>
+      <span id="ofen-text" style="min-width:120px;font-weight:600">Ofen heizt …</span>
+      <span class="balken"><i id="ofen-balken"></i></span>
+      <button class="btn" id="ofen-knopf" disabled>Herausnehmen</button>
+    </div>
+    <div class="plaetze" id="plaetze"></div>
+    <div class="ansage" id="ansage">&nbsp;</div>
+    <div class="waren" id="waren"></div>
+  </div>
+
+  <details class="rules">
+    <summary>📖 So geht’s</summary>
+    <p>Jede Kundschaft hat einen Wunsch aus ein bis drei Waren und wird mit der Zeit
+    ungeduldig – der Balken unten läuft ab. <b>Erst antippen, dann die Waren geben.</b>
+    Ist der Wunsch komplett, geht sie zufrieden weg. Eine falsche Ware kostet Geduld.</p>
+    <p>Gleichzeitig backt der Ofen. Wenn er meldet, dass das Brot fertig ist, hast du
+    ein paar Sekunden, es herauszuholen – sonst verbrennt es. Genau dieses Nebenher
+    ist der Kern: mehrere Uhren gleichzeitig im Kopf behalten.</p>
+    <p>Der <b>Andrang</b> stellt sich auf dich ein: Läuft es rund, kommen beim nächsten
+    Mal mehr Leute und sie warten kürzer. Wird es zu viel, geht es wieder ruhiger zu.
+    Anders als beim stumpfen Wiederholen einer Einzelaufgabe fordert dieses
+    Nebeneinander die Fähigkeit, flink umzuschalten – der Punkt, an dem
+    Echtzeitspiele in Studien am besten abschnitten.</p>
+  </details>
+</main>
+
+<div class="overlay" id="ov-einst" data-dismiss>
+  <div class="panel">
+    <h2>Einstellungen</h2>
+    <div class="field"><label>Dauer</label>
+      <div class="seg" id="s-dauer">
+        <button data-value="90">1½ Minuten</button>
+        <button data-value="150" class="active">2½ Minuten</button>
+        <button data-value="210">3½ Minuten</button>
+      </div>
+    </div>
+    <div class="field"><label>Ofen</label>
+      <div class="seg" id="s-ofen">
+        <button data-value="1" class="active">Ja</button>
+        <button data-value="0">Aus</button>
+      </div>
+      <small>Ohne Ofen bleibt nur der Verkauf – etwas ruhiger.</small>
+    </div>
+    <div class="field"><label>Andrang</label>
+      <div class="seg" id="s-stufe">
+        <button data-value="1">1</button>
+        <button data-value="2">2</button>
+        <button data-value="3">3</button>
+        <button data-value="4">4</button>
+        <button data-value="5">5</button>
+        <button data-value="6">6</button>
+      </div>
+      <small>Stellt sich nach jedem Durchgang von selbst ein.</small>
+    </div>
+    <div class="panel-buttons">
+      <button class="btn primary" id="btn-uebernehmen">Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var cfg = GJ.load("marktstand-cfg", { dauer: 150, ofen: 1 });
+var stufe = GJ.load("marktstand-stufe", 1);
+
+var WAREN = [
+  { id: "apfel", icon: "🍎", name: "Apfel" },
+  { id: "brot", icon: "🍞", name: "Brot" },
+  { id: "kaese", icon: "🧀", name: "Käse" },
+  { id: "tomate", icon: "🍅", name: "Tomate" },
+  { id: "ei", icon: "🥚", name: "Ei" },
+  { id: "milch", icon: "🥛", name: "Milch" }
+];
+var GESICHTER = ["👩", "👨", "👵", "👴", "🧑", "👦", "👧"];
+
+var plaetze = [null, null, null, null];
+/* Zeit aus Einzelbildern aufaddiert – so pausiert der Stand beim Fensterwechsel */
+var gewaehlt = -1, laeuft = false, letzter = 0, verstrichen = 0, naechsterKunde = 0;
+var bedient = 0, weggegangen = 0, falscheWaren = 0, brotGut = 0, brotVerbrannt = 0;
+var ofen = { zustand: "heizt", zeit: 0, dauer: 22, fenster: 8 };
+
+/* Andrang: je höher die Stufe, desto schneller kommen sie und desto kürzer warten sie */
+function ankunftAbstand() { return Math.max(2.4, 7.5 - stufe * 0.85); }
+function geduldDauer() { return Math.max(9, 24 - stufe * 2); }
+function wunschLaenge() { return stufe < 3 ? (Math.random() < 0.6 ? 1 : 2) : (Math.random() < 0.45 ? 2 : (Math.random() < 0.7 ? 3 : 1)); }
+
+function baueWaren() {
+  var box = GJ.el("waren");
+  box.innerHTML = "";
+  WAREN.forEach(function (w) {
+    var b = document.createElement("button");
+    b.className = "btn";
+    b.innerHTML = w.icon;
+    b.title = w.name;
+    b.setAttribute("aria-label", w.name);
+    b.addEventListener("click", function () { gibWare(w.id); });
+    box.appendChild(b);
+  });
+}
+
+function neuerKunde(i) {
+  var n = wunschLaenge();
+  var wunsch = [];
+  for (var k = 0; k < n; k++) wunsch.push(GJ.pick(WAREN).id);
+  plaetze[i] = {
+    gesicht: GJ.pick(GESICHTER),
+    wunsch: wunsch,
+    hat: [],
+    geduld: geduldDauer(),
+    max: geduldDauer(),
+    fertig: false
+  };
+}
+
+function zeichne() {
+  var box = GJ.el("plaetze");
+  if (box.children.length !== 4) {
+    box.innerHTML = "";
+    for (var i = 0; i < 4; i++) {
+      var d = document.createElement("div");
+      d.className = "platz leer";
+      d.dataset.i = i;
+      d.addEventListener("click", function () { waehle(+this.dataset.i); });
+      box.appendChild(d);
+    }
+  }
+  plaetze.forEach(function (k, i) {
+    var el = box.children[i];
+    if (!k) {
+      if (!el.classList.contains("leer") || el.innerHTML !== "frei") {
+        el.className = "platz leer";
+        el.innerHTML = "frei";
+      }
+      return;
+    }
+    var offeneWaren = k.wunsch.map(function (w, j) {
+      var ware = WAREN.filter(function (x) { return x.id === w; })[0];
+      return k.hat[j] ? ware.icon : "<i>" + ware.icon + "</i>";
+    }).join("");
+    var anteil = Math.max(0, k.geduld / k.max);
+    var stand = anteil < 0.25 ? "knapp" : (anteil < 0.55 ? "mittel" : "");
+    el.className = "platz" + (i === gewaehlt ? " gewaehlt" : "") + (k.fertig ? " fertig" : "");
+    el.innerHTML =
+      '<div class="kopf"><span>' + k.gesicht + "</span><span>" + (k.fertig ? "Danke!" : "möchte:") + "</span></div>" +
+      '<div class="wunsch">' + offeneWaren + "</div>" +
+      '<div class="geduld ' + stand + '"><i style="width:' + (anteil * 100) + '%"></i></div>';
+  });
+}
+
+function waehle(i) {
+  if (!laeuft || !plaetze[i] || plaetze[i].fertig) return;
+  gewaehlt = i;
+  GJ.el("ansage").innerHTML = "&nbsp;";
+  zeichne();
+}
+
+function gibWare(id) {
+  if (!laeuft) return;
+  var k = plaetze[gewaehlt];
+  if (!k || k.fertig) {
+    melde("Erst die Kundschaft antippen.", false);
+    return;
+  }
+  /* nächste noch offene Stelle, die zu dieser Ware passt */
+  var pos = -1;
+  for (var j = 0; j < k.wunsch.length; j++) {
+    if (!k.hat[j] && k.wunsch[j] === id) { pos = j; break; }
+  }
+  if (pos < 0) {
+    falscheWaren++;
+    k.geduld = Math.max(0, k.geduld - 2.5);
+    melde("Das wollte sie nicht.", false);
+    GJ.pieps(false);
+    zeichne();
+    return;
+  }
+  k.hat[pos] = true;
+  GJ.pieps(true);
+  if (k.hat.filter(Boolean).length === k.wunsch.length) {
+    k.fertig = true;
+    bedient++;
+    melde("Bedient! 🙂", true);
+    var idx = gewaehlt;
+    gewaehlt = -1;
+    setTimeout(function () { if (plaetze[idx] && plaetze[idx].fertig) plaetze[idx] = null; zeichne(); }, 700);
+  }
+  zeichne();
+  hud();
+}
+
+function melde(text, gut) {
+  var an = GJ.el("ansage");
+  an.textContent = text;
+  an.className = "ansage " + (gut ? "gut" : "schlecht");
+}
+
+function schritt(zeit) {
+  if (!laeuft) return;
+  var dt = Math.min((zeit - letzter) / 1000, 0.1);
+  letzter = zeit;
+  verstrichen += dt;
+
+  /* Kundschaft */
+  plaetze.forEach(function (k, i) {
+    if (!k || k.fertig) return;
+    k.geduld -= dt;
+    if (k.geduld <= 0) {
+      plaetze[i] = null;
+      weggegangen++;
+      if (gewaehlt === i) gewaehlt = -1;
+      melde("Jemand ist gegangen.", false);
+      GJ.pieps(false);
+      hud();
+    }
+  });
+  naechsterKunde -= dt;
+  if (naechsterKunde <= 0) {
+    var frei = [];
+    plaetze.forEach(function (k, i) { if (!k) frei.push(i); });
+    if (frei.length) neuerKunde(GJ.pick(frei));
+    naechsterKunde = ankunftAbstand() * (0.75 + Math.random() * 0.5);
+  }
+
+  /* Ofen */
+  if (cfg.ofen) {
+    ofen.zeit += dt;
+    var b = GJ.el("ofen-balken"), o = GJ.el("ofen");
+    if (ofen.zustand === "heizt") {
+      b.style.width = Math.min(100, (ofen.zeit / ofen.dauer) * 100) + "%";
+      if (ofen.zeit >= ofen.dauer) {
+        ofen.zustand = "fertig"; ofen.zeit = 0;
+        o.classList.add("fertig");
+        GJ.el("ofen-text").textContent = "Brot ist fertig!";
+        GJ.el("ofen-knopf").disabled = false;
+        GJ.pieps(true);
+      }
+    } else {
+      b.style.width = Math.max(0, 100 - (ofen.zeit / ofen.fenster) * 100) + "%";
+      if (ofen.zeit >= ofen.fenster) {
+        brotVerbrannt++;
+        ofenZurueck("Das Brot ist verbrannt.");
+        melde("Das Brot ist verbrannt.", false);
+        GJ.pieps(false);
+      }
+    }
+  }
+
+  zeichne();
+  hud();
+  if (verstrichen >= cfg.dauer) return ende();
+  requestAnimationFrame(schritt);
+}
+
+function ofenZurueck(text) {
+  ofen.zustand = "heizt"; ofen.zeit = 0;
+  ofen.dauer = Math.max(12, 26 - stufe * 1.6);
+  GJ.el("ofen").classList.remove("fertig");
+  GJ.el("ofen-text").textContent = "Ofen heizt …";
+  GJ.el("ofen-knopf").disabled = true;
+  GJ.el("ofen-balken").style.width = "0";
+}
+
+function start() {
+  plaetze = [null, null, null, null];
+  gewaehlt = -1; bedient = 0; weggegangen = 0; falscheWaren = 0;
+  brotGut = 0; brotVerbrannt = 0;
+  naechsterKunde = 1.2; verstrichen = 0;
+  ofen = { zustand: "heizt", zeit: 0, dauer: Math.max(12, 26 - stufe * 1.6), fenster: Math.max(4.5, 9 - stufe * 0.5) };
+  laeuft = true;
+  baueWaren();
+  GJ.el("start-box").style.display = "none";
+  GJ.el("spiel").style.display = "";
+  GJ.el("ofen").style.display = cfg.ofen ? "" : "none";
+  GJ.el("plaetze").innerHTML = "";
+  zeichne();
+  letzter = performance.now();
+  requestAnimationFrame(schritt);
+}
+
+function ende() {
+  laeuft = false;
+  var gesamt = bedient + weggegangen;
+  var quote = gesamt ? bedient / gesamt : 0;
+  var brotGesamt = brotGut + brotVerbrannt;
+  var brotQuote = brotGesamt ? brotGut / brotGesamt : 1;
+  var strafe = Math.min(falscheWaren * 0.015, 0.15);
+  var guete = GJ.clamp(quote * (cfg.ofen ? 0.72 : 1) + (cfg.ofen ? brotQuote * 0.28 : 0) - strafe, 0, 1);
+
+  var alteStufe = stufe;
+  if (guete >= 0.85 && stufe < 6) stufe++;
+  else if (guete < 0.62 && stufe > 1) stufe--;
+  GJ.save("marktstand-stufe", stufe);
+
+  var stufenAnteil = (alteStufe - 1) / 5;
+  var punkte = GJ.clamp((35 + 65 * stufenAnteil) * (0.45 + 0.55 * guete), 0, 100);
+
+  GJ.el("start-box").style.display = "";
+  GJ.el("spiel").style.display = "none";
+  GJ.rahmen.fertig({
+    punkte: punkte,
+    roh: bedient,
+    titel: bedient + " Leute bedient",
+    text: weggegangen + " sind gegangen" +
+          (cfg.ofen ? ", " + brotGut + " von " + brotGesamt + " Broten gerettet" : "") + ".",
+    rohText: "Andrang " + alteStufe +
+             (stufe > alteStufe ? " → " + stufe + " (mehr Betrieb)" : stufe < alteStufe ? " → " + stufe + " (ruhiger)" : "") +
+             (falscheWaren ? " · " + falscheWaren + " Fehlgriffe" : "")
+  });
+}
+
+function hud() {
+  GJ.el("h-zeit").textContent = laeuft ? GJ.fmtTime(cfg.dauer - verstrichen) : "–";
+  GJ.el("h-bedient").textContent = bedient;
+  GJ.el("h-weg").textContent = weggegangen;
+  GJ.el("h-stufe").textContent = stufe;
+}
+
+GJ.el("ofen-knopf").addEventListener("click", function () {
+  if (!laeuft || ofen.zustand !== "fertig") return;
+  brotGut++;
+  ofenZurueck();
+  melde("Brot gerettet.", true);
+  GJ.pieps(true);
+});
+
+document.addEventListener("keydown", function (e) {
+  if (document.querySelector(".overlay.open")) return;
+  if (laeuft && e.key >= "1" && e.key <= "4") waehle(+e.key - 1);
+  else if (laeuft && e.key >= "5" && e.key <= "9") {
+    var b = GJ.$$("#waren .btn")[+e.key - 5];
+    if (b) b.click();
+  } else if (laeuft && e.key === " ") { e.preventDefault(); GJ.el("ofen-knopf").click(); }
+  else if (!laeuft && e.key === "Enter") GJ.el("btn-start").click();
+});
+
+["s-dauer", "s-ofen", "s-stufe"].forEach(function (id) { GJ.seg(GJ.el(id)); });
+GJ.el("btn-einst").addEventListener("click", function () {
+  GJ.segSet(GJ.el("s-dauer"), cfg.dauer);
+  GJ.segSet(GJ.el("s-ofen"), cfg.ofen);
+  GJ.segSet(GJ.el("s-stufe"), stufe);
+  GJ.open("ov-einst");
+});
+GJ.el("btn-uebernehmen").addEventListener("click", function () {
+  cfg = { dauer: +GJ.segVal(GJ.el("s-dauer")), ofen: +GJ.segVal(GJ.el("s-ofen")) };
+  stufe = +GJ.segVal(GJ.el("s-stufe"));
+  GJ.save("marktstand-cfg", cfg);
+  GJ.save("marktstand-stufe", stufe);
+  GJ.close("ov-einst");
+  laeuft = false;
+  GJ.el("start-box").style.display = "";
+  GJ.el("spiel").style.display = "none";
+  hud();
+});
+GJ.el("btn-start").addEventListener("click", start);
+
+document.addEventListener("DOMContentLoaded", function () {
+  GJ.rahmen.start("marktstand", start);
+  hud();
+});
+</script>
+</body>
+</html>

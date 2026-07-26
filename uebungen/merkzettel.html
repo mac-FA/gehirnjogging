@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Merkzettel – Gehirnjogging</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📌</text></svg>">
+<link rel="stylesheet" href="../css/common.css">
+<script src="../js/common.js"></script>
+<script src="../js/uebungen.js"></script>
+<style>
+#ware{
+  width:min(94vw,520px);min-height:170px;border-radius:var(--radius);
+  background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(2rem,8vw,3rem);font-weight:800;letter-spacing:.02em;text-align:center;padding:12px;
+}
+.hauptknoepfe{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:min(94vw,520px)}
+.hauptknoepfe .btn{min-height:78px;font-size:1.15rem}
+.nebenknoepfe{display:flex;gap:12px;justify-content:center;width:min(94vw,520px)}
+.nebenknoepfe .btn{flex:1;min-height:64px;font-size:1.05rem}
+.auftrag{
+  background:var(--accent-soft);border:2px solid var(--accent);border-radius:var(--radius);
+  padding:18px 20px;max-width:520px;
+}
+.auftrag h3{margin:0 0 10px;font-size:1.1rem;color:var(--accent)}
+[data-theme="dark"] .auftrag h3{color:var(--text)}
+.auftrag ul{margin:0;padding-left:22px}
+.auftrag li{margin:9px 0;line-height:1.5}
+.auftrag b{font-size:1.1em}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="icon-btn" href="../index.html" title="Zur Übersicht">🏠</a>
+  <h1><span>📌</span> Merkzettel</h1>
+  <div class="actions">
+    <button class="icon-btn" id="btn-einst" title="Einstellungen">⚙️</button>
+    <button class="icon-btn" id="btn-theme" title="Hell/Dunkel">🌙</button>
+    <button class="icon-btn" id="btn-fs" title="Vollbild">⛶</button>
+  </div>
+</header>
+
+<main class="page center">
+  <div class="hud">
+    <div class="stat"><b id="h-ware">0/36</b><span>Waren</span></div>
+    <div class="stat"><b id="h-sortiert">0</b><span>Richtig sortiert</span></div>
+    <div class="stat"><b id="h-stufe">1</b><span>Stufe</span></div>
+    <div class="stat"><b id="h-best">–</b><span>Bestwert</span></div>
+  </div>
+
+  <div id="start-box" class="center" style="text-align:center">
+    <p style="color:var(--muted);max-width:52ch;margin:0">
+      Einkauf einräumen: Jede Ware kommt in den <b>Kühlschrank</b> oder in den
+      <b>Vorratsschrank</b>. Nebenbei bekommst du ein oder zwei Dinge aufgetragen,
+      an die du später von selbst denken musst – so wie im echten Leben.
+    </p>
+    <button class="btn primary gross" id="btn-start" style="min-width:220px">▶ Start</button>
+  </div>
+
+  <div id="auftrag-box" class="center" style="display:none">
+    <div class="auftrag">
+      <h3>📋 Dein Auftrag – gut merken!</h3>
+      <ul id="auftrag-liste"></ul>
+    </div>
+    <button class="btn primary gross" id="btn-los" style="min-width:220px">Habe ich mir gemerkt</button>
+  </div>
+
+  <div id="spiel" style="display:none" class="center">
+    <div id="ware"></div>
+    <div class="ansage" id="ansage">&nbsp;</div>
+    <div class="hauptknoepfe">
+      <button class="btn" id="b-kuehl">❄️ Kühlschrank</button>
+      <button class="btn" id="b-vorrat">🗄️ Vorratsschrank</button>
+    </div>
+    <div class="nebenknoepfe" id="neben"></div>
+  </div>
+
+  <details class="rules">
+    <summary>📖 So geht’s</summary>
+    <p>Die <b>Nebenaufgabe</b> ist einfach: Milch in den Kühlschrank, Mehl in den
+    Vorratsschrank. Sie soll dich nur beschäftigen. Worum es wirklich geht, ist der
+    <b>Auftrag</b>, den du zu Beginn bekommst – zum Beispiel: „Wenn Butter kommt,
+    drücke die Glocke.“ Niemand erinnert dich daran. Du musst im richtigen Moment
+    von selbst daran denken.</p>
+    <p>Das nennt sich <b>prospektives Gedächtnis</b> – sich etwas vornehmen und es
+    später auch tun. Genau diese Form des Erinnerns macht im Alltag die meisten
+    Schwierigkeiten: die Tabletten, der Anruf, der Topf auf dem Herd. Deshalb ist sie
+    hier drin – sie ist alltagsnäher als jedes Zahlenmerken.</p>
+    <p>Läuft es gut, kommt beim nächsten Mal eine Aufgabe mehr dazu. Läuft es schlecht,
+    wird es wieder einfacher.</p>
+  </details>
+</main>
+
+<div class="overlay" id="ov-einst" data-dismiss>
+  <div class="panel">
+    <h2>Einstellungen</h2>
+    <div class="field"><label>Anzahl Waren</label>
+      <div class="seg" id="s-waren">
+        <button data-value="24">24</button>
+        <button data-value="36" class="active">36</button>
+        <button data-value="48">48</button>
+      </div>
+    </div>
+    <div class="field"><label>Stufe</label>
+      <div class="seg" id="s-stufe">
+        <button data-value="1">1</button>
+        <button data-value="2">2</button>
+        <button data-value="3">3</button>
+        <button data-value="4">4</button>
+        <button data-value="5">5</button>
+      </div>
+      <small>Stellt sich nach jedem Durchgang von selbst ein – hier nur, falls du möchtest.</small>
+    </div>
+    <div class="panel-buttons">
+      <button class="btn primary" id="btn-uebernehmen">Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var cfg = GJ.load("merkzettel-cfg", { waren: 36 });
+var stufe = GJ.load("merkzettel-stufe", 1);
+
+var KUEHL = ["Milch", "Butter", "Joghurt", "Käse", "Wurst", "Quark", "Sahne", "Eier",
+             "Salat", "Frischkäse", "Schinken", "Hackfleisch", "Fisch", "Margarine",
+             "Pudding", "Gurke"];
+var VORRAT = ["Mehl", "Zucker", "Nudeln", "Reis", "Salz", "Kaffee", "Tee", "Honig",
+              "Öl", "Essig", "Haferflocken", "Zwieback", "Kekse", "Linsen",
+              "Backpulver", "Knäckebrot"];
+
+var folge, index, sortiertRichtig, sortiertFalsch;
+var zielWorte, zielTreffer, zielVerpasst, glockeFalsch;
+var uhrAufgabe, uhrGedrueckt, uhrOk, t0, laeuft = false, offen = false;
+
+function baueDurchgang() {
+  /* Stufe steuert, wie viel man sich vornehmen muss */
+  var anzahlWorte = stufe <= 1 ? 1 : (stufe <= 3 ? 2 : 3);
+  uhrAufgabe = stufe >= 4;
+
+  var alle = KUEHL.map(function (w) { return { wort: w, kuehl: true }; })
+    .concat(VORRAT.map(function (w) { return { wort: w, kuehl: false }; }));
+  GJ.shuffle(alle);
+
+  /* Zielwörter aus der zweiten Hälfte der Liste, damit eine echte Wartezeit entsteht */
+  zielWorte = GJ.shuffle(alle.slice()).slice(0, anzahlWorte).map(function (a) { return a.wort; });
+
+  folge = [];
+  var vorrat = alle.slice();
+  var i = 0;
+  while (folge.length < cfg.waren) {
+    if (i >= vorrat.length) { GJ.shuffle(vorrat); i = 0; }
+    var w = vorrat[i++];
+    /* Zielwörter nicht in den ersten 8 Waren zeigen */
+    if (zielWorte.indexOf(w.wort) >= 0 && folge.length < 8) continue;
+    if (folge.length && folge[folge.length - 1].wort === w.wort) continue;
+    folge.push(w);
+  }
+  /* Sicherstellen, dass jedes Zielwort mindestens zweimal vorkommt */
+  zielWorte.forEach(function (z, k) {
+    var stellen = [10 + k * 6, Math.floor(cfg.waren * 0.6) + k * 5];
+    stellen.forEach(function (s) {
+      if (s < folge.length) folge[s] = { wort: z, kuehl: KUEHL.indexOf(z) >= 0 };
+    });
+  });
+}
+
+function zeigeAuftrag() {
+  var ul = GJ.el("auftrag-liste");
+  ul.innerHTML = "";
+  zielWorte.forEach(function (z) {
+    var li = document.createElement("li");
+    li.innerHTML = "Bei <b>" + z + "</b>: nicht einräumen, sondern die <b>🔔 Glocke</b> drücken.";
+    ul.appendChild(li);
+  });
+  if (uhrAufgabe) {
+    var li2 = document.createElement("li");
+    li2.innerHTML = "Wenn ungefähr <b>eine Minute</b> vergangen ist: einmal die <b>⏰ Uhr</b> drücken.";
+    ul.appendChild(li2);
+  }
+  GJ.el("start-box").style.display = "none";
+  GJ.el("auftrag-box").style.display = "";
+}
+
+function baueNebenknoepfe() {
+  var box = GJ.el("neben");
+  box.innerHTML = "";
+  var g = document.createElement("button");
+  g.className = "btn"; g.id = "b-glocke"; g.textContent = "🔔 Glocke";
+  g.addEventListener("click", function () { antwort("glocke"); });
+  box.appendChild(g);
+  if (uhrAufgabe) {
+    var u = document.createElement("button");
+    u.className = "btn"; u.id = "b-uhr"; u.textContent = "⏰ Uhr";
+    u.addEventListener("click", uhrDruck);
+    box.appendChild(u);
+  }
+}
+
+function los() {
+  GJ.el("auftrag-box").style.display = "none";
+  GJ.el("spiel").style.display = "";
+  baueNebenknoepfe();
+  index = 0; sortiertRichtig = 0; sortiertFalsch = 0;
+  zielTreffer = 0; zielVerpasst = 0; glockeFalsch = 0;
+  uhrGedrueckt = false; uhrOk = false;
+  laeuft = true;
+  t0 = performance.now();
+  naechsteWare();
+}
+
+function naechsteWare() {
+  if (index >= folge.length) return ende();
+  GJ.el("ware").textContent = folge[index].wort;
+  GJ.el("ansage").innerHTML = "&nbsp;";
+  GJ.el("ansage").className = "ansage";
+  offen = true;
+  hud();
+}
+
+function antwort(art) {
+  if (!offen) return;
+  offen = false;
+  var w = folge[index];
+  var istZiel = zielWorte.indexOf(w.wort) >= 0;
+  var an = GJ.el("ansage");
+  var gut;
+
+  if (istZiel) {
+    gut = art === "glocke";
+    if (gut) { zielTreffer++; an.textContent = "🔔 Genau – daran gedacht!"; }
+    else { zielVerpasst++; an.textContent = "Hier war die Glocke dran (" + w.wort + ")"; }
+  } else if (art === "glocke") {
+    gut = false; glockeFalsch++;
+    an.textContent = w.wort + " war kein Auftrag – einräumen.";
+  } else {
+    gut = (art === "kuehl") === w.kuehl;
+    if (gut) { sortiertRichtig++; an.textContent = "✓"; }
+    else { sortiertFalsch++; an.textContent = w.wort + " gehört in den " + (w.kuehl ? "Kühlschrank" : "Vorratsschrank"); }
+  }
+  an.className = "ansage " + (gut ? "gut" : "schlecht");
+  GJ.pieps(gut);
+  index++;
+  hud();
+  setTimeout(naechsteWare, gut ? 380 : 1100);
+}
+
+function uhrDruck() {
+  if (!laeuft || uhrGedrueckt) return;
+  uhrGedrueckt = true;
+  var s = (performance.now() - t0) / 1000;
+  uhrOk = s >= 48 && s <= 75;
+  var an = GJ.el("ansage");
+  an.textContent = uhrOk ? "⏰ Gute Zeitschätzung!" : "⏰ Notiert – es waren " + Math.round(s) + " Sekunden.";
+  an.className = "ansage " + (uhrOk ? "gut" : "");
+  GJ.pieps(uhrOk);
+  GJ.el("b-uhr").disabled = true;
+}
+
+function ende() {
+  laeuft = false; offen = false;
+  var zielGesamt = zielTreffer + zielVerpasst;
+  var prosp = zielGesamt ? zielTreffer / zielGesamt : 0;
+  if (uhrAufgabe) prosp = (prosp * zielGesamt + (uhrOk ? 1 : 0)) / (zielGesamt + 1);
+  var sortGesamt = sortiertRichtig + sortiertFalsch;
+  var sortQuote = sortGesamt ? sortiertRichtig / sortGesamt : 0;
+  var strafe = Math.min(glockeFalsch * 0.04, 0.2);
+  var guete = GJ.clamp(0.62 * prosp + 0.38 * sortQuote - strafe, 0, 1);
+  var punkte = GJ.clamp(guete * 100 * (0.62 + 0.095 * stufe), 0, 100);
+
+  var alteStufe = stufe;
+  if (guete >= 0.85 && stufe < 5) stufe++;
+  else if (guete < 0.5 && stufe > 1) stufe--;
+  GJ.save("merkzettel-stufe", stufe);
+
+  GJ.el("start-box").style.display = "";
+  GJ.el("spiel").style.display = "none";
+  GJ.rahmen.fertig({
+    punkte: punkte,
+    roh: Math.round(prosp * 100),
+    titel: zielTreffer + " von " + zielGesamt + " Aufträgen erledigt",
+    text: (uhrAufgabe ? (uhrOk ? "Die Uhr hast du gut getroffen. " : (uhrGedrueckt ? "Die Uhr kam zur falschen Zeit. " : "Die Uhr hast du ganz vergessen. ")) : "") +
+          sortiertRichtig + " von " + sortGesamt + " Waren richtig eingeräumt.",
+    rohText: "Stufe " + alteStufe + (stufe > alteStufe ? " → " + stufe + " (aufgestiegen)" :
+             stufe < alteStufe ? " → " + stufe + " (etwas leichter)" : "") +
+             (glockeFalsch ? " · " + glockeFalsch + "× zu früh geläutet" : "")
+  });
+}
+
+function hud() {
+  GJ.el("h-ware").textContent = index + "/" + cfg.waren;
+  GJ.el("h-sortiert").textContent = sortiertRichtig || 0;
+  GJ.el("h-stufe").textContent = stufe;
+  GJ.el("h-best").textContent = GJ.bestwert("merkzettel") || "–";
+}
+
+function start() {
+  baueDurchgang();
+  zeigeAuftrag();
+  hud();
+}
+
+GJ.el("b-kuehl").addEventListener("click", function () { antwort("kuehl"); });
+GJ.el("b-vorrat").addEventListener("click", function () { antwort("vorrat"); });
+GJ.el("btn-los").addEventListener("click", los);
+GJ.el("btn-start").addEventListener("click", start);
+
+document.addEventListener("keydown", function (e) {
+  if (document.querySelector(".overlay.open")) return;
+  if (offen) {
+    if (e.key === "ArrowLeft" || e.key === "1") antwort("kuehl");
+    if (e.key === "ArrowRight" || e.key === "2") antwort("vorrat");
+    if (e.key === " " || e.key === "3") { e.preventDefault(); antwort("glocke"); }
+    if (e.key === "4" && uhrAufgabe) uhrDruck();
+  } else if (!laeuft && e.key === "Enter") {
+    if (GJ.el("auftrag-box").style.display !== "none") GJ.el("btn-los").click();
+    else GJ.el("btn-start").click();
+  }
+});
+
+["s-waren", "s-stufe"].forEach(function (id) { GJ.seg(GJ.el(id)); });
+GJ.el("btn-einst").addEventListener("click", function () {
+  GJ.segSet(GJ.el("s-waren"), cfg.waren);
+  GJ.segSet(GJ.el("s-stufe"), stufe);
+  GJ.open("ov-einst");
+});
+GJ.el("btn-uebernehmen").addEventListener("click", function () {
+  cfg = { waren: +GJ.segVal(GJ.el("s-waren")) };
+  stufe = +GJ.segVal(GJ.el("s-stufe"));
+  GJ.save("merkzettel-cfg", cfg);
+  GJ.save("merkzettel-stufe", stufe);
+  GJ.close("ov-einst");
+  laeuft = false; offen = false;
+  GJ.el("start-box").style.display = "";
+  GJ.el("auftrag-box").style.display = "none";
+  GJ.el("spiel").style.display = "none";
+  hud();
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+  GJ.rahmen.start("merkzettel", start);
+  hud();
+});
+</script>
+</body>
+</html>

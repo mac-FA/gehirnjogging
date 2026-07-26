@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Doppelspur – Gehirnjogging</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚗</text></svg>">
+<link rel="stylesheet" href="../css/common.css">
+<script src="../js/common.js"></script>
+<script src="../js/uebungen.js"></script>
+<style>
+#c{cursor:none}
+#taste{min-width:230px;min-height:76px;font-size:1.3rem}
+#hinweis{color:var(--muted);text-align:center;min-height:1.5em}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="icon-btn" href="../index.html" title="Zur Übersicht">🏠</a>
+  <h1><span>🚗</span> Doppelspur</h1>
+  <div class="actions">
+    <button class="icon-btn" id="btn-einst" title="Einstellungen">⚙️</button>
+    <button class="icon-btn" id="btn-theme" title="Hell/Dunkel">🌙</button>
+    <button class="icon-btn" id="btn-fs" title="Vollbild">⛶</button>
+  </div>
+</header>
+
+<main class="page center">
+  <div class="hud">
+    <div class="stat"><b id="h-zeit">–</b><span>Restzeit</span></div>
+    <div class="stat"><b id="h-spur">–</b><span>Auf der Spur</span></div>
+    <div class="stat"><b id="h-schild">–</b><span>Schilder</span></div>
+    <div class="stat"><b id="h-best">–</b><span>Bestwert</span></div>
+  </div>
+
+  <div id="start-box" class="center" style="text-align:center">
+    <p style="color:var(--muted);max-width:50ch;margin:0">
+      Halte das Auto mit der Maus (oder den Pfeiltasten) auf der Straße –
+      und drücke <b>gleichzeitig</b> die große Taste, sobald oben ein
+      <b>Dreieck</b> auftaucht. Bei Kreis und Viereck: nichts tun.
+    </p>
+    <button class="btn primary gross" id="btn-start" style="min-width:220px">▶ Start</button>
+  </div>
+
+  <div id="spiel" style="display:none" class="center">
+    <div class="buehne"><canvas id="c" width="600" height="440"></canvas></div>
+    <button class="btn primary" id="taste">▲ Dreieck!</button>
+    <div id="hinweis">Maus über das Feld bewegen zum Lenken · Leertaste für die Schilder</div>
+  </div>
+
+  <details class="rules">
+    <summary>📖 So geht’s</summary>
+    <p>Zwei Aufgaben laufen gleichzeitig: <b>Lenken</b> (das Auto soll zwischen den
+    Linien bleiben) und <b>Aufpassen</b> (nur beim Dreieck die Taste drücken).
+    Genau dieses „zwei Dinge auf einmal“ ist der Kern der Übung – nicht die
+    Geschwindigkeit allein.</p>
+    <p>Alle 15 Sekunden wird abgerechnet: War es gut, wird die Straße kurviger und die
+    Schilder kommen dichter. Ging es daneben, wird es wieder ruhiger. Am Ende zählt das
+    Tempo, das du sicher bewältigt hast.</p>
+    <p>Doppelaufgaben-Training zeigt in Übersichtsarbeiten die <b>größten und
+    beständigsten Effekte</b> aller Trainingsformen bei älteren Menschen – deutlich
+    größer als reines Aufgaben-Pauken am Bildschirm.</p>
+  </details>
+</main>
+
+<div class="overlay" id="ov-einst" data-dismiss>
+  <div class="panel">
+    <h2>Einstellungen</h2>
+    <div class="field"><label>Dauer</label>
+      <div class="seg" id="s-dauer">
+        <button data-value="60">1 Minute</button>
+        <button data-value="120" class="active">2 Minuten</button>
+        <button data-value="180">3 Minuten</button>
+      </div>
+    </div>
+    <div class="field"><label>Fahrbahnbreite</label>
+      <div class="seg" id="s-breite">
+        <button data-value="90">Breit</button>
+        <button data-value="66" class="active">Normal</button>
+        <button data-value="48">Schmal</button>
+      </div>
+    </div>
+    <div class="field"><label>Schilder</label>
+      <div class="seg" id="s-schilder">
+        <button data-value="1">Ja</button>
+        <button data-value="0">Nur lenken</button>
+      </div>
+      <small>Ohne Schilder ist es keine Doppelaufgabe mehr – nur als sanfter Einstieg gedacht.</small>
+    </div>
+    <div class="panel-buttons">
+      <button class="btn primary" id="btn-uebernehmen">Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var cfg = GJ.load("doppelspur-cfg", { dauer: 120, breite: 66, schilder: 1 });
+if (cfg.schilder === undefined) cfg.schilder = 1;
+
+var c = GJ.el("c"), ctx = c.getContext("2d");
+var W = 600, H = 440, autoY = H - 70;
+
+/* Die Zeit wird aus den Einzelbildern aufaddiert, nicht aus der Uhr –
+   so bleibt die Übung stehen, wenn zwischendurch das Fenster gewechselt wird. */
+var laeuft = false, letzterFrame = 0, verstrichen = 0, blockZeit = 0;
+var treppe, autoX, zielX, strasseZ = 0;
+var rahmenGesamt = 0, rahmenDrauf = 0, blockGesamt = 0, blockDrauf = 0;
+var schild = null, schildTimer = 0, gedrueckt = false;
+var treffer = 0, verpasst = 0, fehlalarm = 0, blockRichtig = 0, blockSchilder = 0, blockFehl = 0;
+var tastenLinks = false, tastenRechts = false;
+
+function farbe(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim() || "#888"; }
+
+/* Straßenmitte an der Höhe y (0 = oben) – ruhige, überlagerte Wellen */
+function mitteBei(y) {
+  var p = strasseZ + (H - y) * 0.006;
+  var k = treppe ? treppe.wert : 1;
+  return W / 2 + Math.sin(p) * 105 * Math.min(k, 1.6) + Math.sin(p * 2.31 + 1.7) * 46 * k;
+}
+
+function zeichne() {
+  ctx.fillStyle = farbe("--surface");
+  ctx.fillRect(0, 0, W, H);
+
+  /* Straße */
+  var halb = cfg.breite;
+  ctx.beginPath();
+  for (var y = 0; y <= H; y += 8) { var m = mitteBei(y); if (y === 0) ctx.moveTo(m - halb, y); else ctx.lineTo(m - halb, y); }
+  for (var y2 = H; y2 >= 0; y2 -= 8) { ctx.lineTo(mitteBei(y2) + halb, y2); }
+  ctx.closePath();
+  ctx.fillStyle = farbe("--surface2"); ctx.fill();
+  ctx.strokeStyle = farbe("--border"); ctx.lineWidth = 3; ctx.stroke();
+
+  /* Mittellinie */
+  ctx.strokeStyle = farbe("--border"); ctx.lineWidth = 2; ctx.setLineDash([14, 16]);
+  ctx.beginPath();
+  for (var y3 = 0; y3 <= H; y3 += 8) { var mm = mitteBei(y3); if (y3 === 0) ctx.moveTo(mm, y3); else ctx.lineTo(mm, y3); }
+  ctx.stroke(); ctx.setLineDash([]);
+
+  /* Schilderfeld oben */
+  ctx.fillStyle = farbe("--surface");
+  ctx.fillRect(0, 0, W, 92);
+  ctx.strokeStyle = farbe("--border"); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, 92); ctx.lineTo(W, 92); ctx.stroke();
+  if (schild) {
+    ctx.save();
+    ctx.translate(W / 2, 46);
+    ctx.fillStyle = schild.art === "ziel" ? farbe("--accent") : farbe("--muted");
+    if (schild.art === "ziel") {
+      ctx.beginPath(); ctx.moveTo(0, -26); ctx.lineTo(28, 22); ctx.lineTo(-28, 22); ctx.closePath(); ctx.fill();
+    } else if (schild.art === "kreis") {
+      ctx.beginPath(); ctx.arc(0, 0, 26, 0, 7); ctx.fill();
+    } else {
+      ctx.fillRect(-24, -24, 48, 48);
+    }
+    ctx.restore();
+  } else {
+    ctx.fillStyle = farbe("--border");
+    ctx.font = "500 15px system-ui, sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("· · ·", W / 2, 52);
+  }
+
+  /* Auto */
+  var m0 = mitteBei(autoY);
+  var drauf = Math.abs(autoX - m0) < halb - 12;
+  ctx.save();
+  ctx.translate(autoX, autoY);
+  ctx.fillStyle = drauf ? farbe("--accent") : farbe("--danger");
+  ctx.beginPath();
+  ctx.moveTo(-17, 20); ctx.lineTo(-17, -6); ctx.lineTo(-9, -20);
+  ctx.lineTo(9, -20); ctx.lineTo(17, -6); ctx.lineTo(17, 20);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = farbe("--surface");
+  ctx.fillRect(-10, -12, 20, 9);
+  ctx.restore();
+}
+
+function schritt(zeit) {
+  if (!laeuft) return;
+  var dt = Math.min((zeit - letzterFrame) / 1000, 0.05);
+  letzterFrame = zeit;
+  verstrichen += dt;
+  blockZeit += dt;
+  var k = treppe.wert;
+
+  strasseZ += dt * 0.55 * k;
+
+  /* Lenken */
+  if (tastenLinks) zielX -= 320 * dt;
+  if (tastenRechts) zielX += 320 * dt;
+  zielX = GJ.clamp(zielX, 20, W - 20);
+  autoX += (zielX - autoX) * Math.min(1, dt * 12);
+
+  /* Spurhaltung zählen */
+  rahmenGesamt++; blockGesamt++;
+  if (Math.abs(autoX - mitteBei(autoY)) < cfg.breite - 12) { rahmenDrauf++; blockDrauf++; }
+
+  /* Schilder */
+  if (cfg.schilder) {
+    schildTimer -= dt;
+    if (schild && schildTimer <= 0) {
+      if (schild.art === "ziel" && !gedrueckt) { verpasst++; GJ.pieps(false); }
+      schild = null;
+      schildTimer = (1.1 + Math.random() * 1.2) / Math.max(k, 0.6);
+    } else if (!schild && schildTimer <= 0) {
+      var r = Math.random();
+      schild = { art: r < 0.42 ? "ziel" : (r < 0.71 ? "kreis" : "eck") };
+      gedrueckt = false;
+      if (schild.art === "ziel") blockSchilder++;   /* nur Dreiecke verlangen eine Reaktion */
+      schildTimer = 1.45 / Math.max(k, 0.7);
+    }
+  }
+
+  /* Alle 15 Sekunden Schwierigkeit nachstellen */
+  if (blockZeit > 15) {
+    var spur = blockGesamt ? blockDrauf / blockGesamt : 0;
+    var reakt = blockSchilder ? blockRichtig / blockSchilder : 1;
+    reakt = GJ.clamp(reakt - blockFehl * 0.15, 0, 1);
+    var gut = spur * 0.55 + reakt * 0.45;
+    if (gut >= 0.78) treppe.richtig(); else treppe.falsch();
+    blockZeit = 0; blockGesamt = 0; blockDrauf = 0; blockRichtig = 0; blockSchilder = 0; blockFehl = 0;
+  }
+
+  zeichne();
+  hud();
+
+  if (verstrichen >= cfg.dauer) return ende();
+  requestAnimationFrame(schritt);
+}
+
+function tasteGedrueckt() {
+  if (!laeuft || !cfg.schilder) return;
+  if (schild && !gedrueckt) {
+    gedrueckt = true;
+    if (schild.art === "ziel") { treffer++; blockRichtig++; GJ.pieps(true); }
+    else { fehlalarm++; blockFehl++; GJ.pieps(false); }
+  } else if (!schild) {
+    fehlalarm++; blockFehl++; GJ.pieps(false);
+  }
+}
+
+function hud() {
+  GJ.el("h-zeit").textContent = GJ.fmtTime(cfg.dauer - verstrichen);
+  GJ.el("h-spur").textContent = rahmenGesamt ? Math.round((rahmenDrauf / rahmenGesamt) * 100) + " %" : "–";
+  GJ.el("h-schild").textContent = cfg.schilder ? treffer + "/" + (treffer + verpasst) : "–";
+}
+
+function start() {
+  var startTempo = GJ.load("doppelspur-tempo", 1);
+  treppe = new GJ.Treppe({ start: startTempo, min: 0.55, max: 3.2, faktor: 1.13, faktorRauf: 0.86, nDown: 1 });
+  autoX = zielX = W / 2;
+  strasseZ = 0; rahmenGesamt = 0; rahmenDrauf = 0; blockGesamt = 0; blockDrauf = 0;
+  treffer = 0; verpasst = 0; fehlalarm = 0; blockRichtig = 0; blockSchilder = 0; blockFehl = 0;
+  schild = null; schildTimer = 1.5;
+  verstrichen = 0; blockZeit = 0;
+  laeuft = true;
+  GJ.el("start-box").style.display = "none";
+  GJ.el("spiel").style.display = "";
+  GJ.el("taste").style.display = cfg.schilder ? "" : "none";
+  letzterFrame = performance.now();
+  requestAnimationFrame(schritt);
+}
+
+function ende() {
+  laeuft = false;
+  var spur = rahmenGesamt ? rahmenDrauf / rahmenGesamt : 0;
+  var schilderGesamt = treffer + verpasst;
+  var reakt = schilderGesamt ? treffer / schilderGesamt : 1;
+  var strafe = Math.min(fehlalarm * 0.03, 0.25);
+  var tempo = treppe.schwelle();
+  GJ.save("doppelspur-tempo", Math.round(tempo * 100) / 100);
+
+  /* Punkte: erreichtes Tempo, gewichtet mit der Güte beider Aufgaben */
+  var tempoAnteil = GJ.clamp((tempo - 0.55) / (3.0 - 0.55), 0, 1);
+  var guete = GJ.clamp(spur * 0.55 + reakt * 0.45 - strafe, 0, 1);
+  var punkte = GJ.clamp(30 + 70 * tempoAnteil, 0, 100) * (0.55 + 0.45 * guete);
+
+  GJ.el("start-box").style.display = "";
+  GJ.el("spiel").style.display = "none";
+  GJ.rahmen.fertig({
+    punkte: punkte,
+    roh: Math.round(tempo * 100) / 100,
+    titel: Math.round(spur * 100) + " % auf der Spur",
+    text: cfg.schilder
+      ? treffer + " von " + schilderGesamt + " Dreiecken erwischt, " + fehlalarm + " Fehlgriffe."
+      : "Reines Lenken – nächstes Mal gern mit Schildern.",
+    rohText: "Tempo " + (Math.round(tempo * 10) / 10) + " · " + Math.round(cfg.dauer / 60 * 10) / 10 + " Min."
+  });
+}
+
+/* ---------------- Steuerung ---------------- */
+c.addEventListener("pointermove", function (e) {
+  var r = c.getBoundingClientRect();
+  zielX = ((e.clientX - r.left) / r.width) * W;
+});
+c.addEventListener("pointerdown", function (e) {
+  var r = c.getBoundingClientRect();
+  zielX = ((e.clientX - r.left) / r.width) * W;
+});
+GJ.el("taste").addEventListener("pointerdown", function (e) { e.preventDefault(); tasteGedrueckt(); });
+document.addEventListener("keydown", function (e) {
+  if (document.querySelector(".overlay.open")) return;
+  if (e.key === "ArrowLeft") { tastenLinks = true; e.preventDefault(); }
+  if (e.key === "ArrowRight") { tastenRechts = true; e.preventDefault(); }
+  if (e.key === " ") { e.preventDefault(); if (laeuft) tasteGedrueckt(); else GJ.el("btn-start").click(); }
+  if (e.key === "Enter" && !laeuft) GJ.el("btn-start").click();
+});
+document.addEventListener("keyup", function (e) {
+  if (e.key === "ArrowLeft") tastenLinks = false;
+  if (e.key === "ArrowRight") tastenRechts = false;
+});
+
+/* ---------------- Einstellungen ---------------- */
+["s-dauer", "s-breite", "s-schilder"].forEach(function (id) { GJ.seg(GJ.el(id)); });
+GJ.el("btn-einst").addEventListener("click", function () {
+  GJ.segSet(GJ.el("s-dauer"), cfg.dauer);
+  GJ.segSet(GJ.el("s-breite"), cfg.breite);
+  GJ.segSet(GJ.el("s-schilder"), cfg.schilder);
+  GJ.open("ov-einst");
+});
+GJ.el("btn-uebernehmen").addEventListener("click", function () {
+  cfg = {
+    dauer: +GJ.segVal(GJ.el("s-dauer")),
+    breite: +GJ.segVal(GJ.el("s-breite")),
+    schilder: +GJ.segVal(GJ.el("s-schilder"))
+  };
+  GJ.save("doppelspur-cfg", cfg);
+  GJ.close("ov-einst");
+  laeuft = false;
+  GJ.el("start-box").style.display = "";
+  GJ.el("spiel").style.display = "none";
+});
+GJ.el("btn-start").addEventListener("click", start);
+
+document.addEventListener("DOMContentLoaded", function () {
+  GJ.rahmen.start("doppelspur", start);
+  GJ.el("h-best").textContent = GJ.bestwert("doppelspur") || "–";
+});
+</script>
+</body>
+</html>

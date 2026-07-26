@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gehör – Gehirnjogging</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎧</text></svg>">
+<link rel="stylesheet" href="../css/common.css">
+<script src="../js/common.js"></script>
+<script src="../js/uebungen.js"></script>
+<style>
+#buehne{
+  width:min(94vw,520px);min-height:180px;border-radius:var(--radius);
+  background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;
+}
+#wellen{display:flex;gap:14px;align-items:flex-end;height:72px}
+#wellen span{
+  width:26px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  transition:height .12s,background .12s;height:22px;
+}
+#wellen span.hoch{height:66px}
+#wellen span.an{background:var(--accent);border-color:var(--accent)}
+#zustand{font-weight:700;color:var(--muted)}
+.tonknoepfe{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:min(94vw,520px)}
+.tonknoepfe .btn{min-height:80px;font-size:1.15rem;flex-direction:column;gap:2px}
+.tonknoepfe .btn small{font-weight:500;color:var(--muted);font-size:.82rem}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="icon-btn" href="../index.html" title="Zur Übersicht">🏠</a>
+  <h1><span>🎧</span> Gehör</h1>
+  <div class="actions">
+    <button class="icon-btn" id="btn-einst" title="Einstellungen">⚙️</button>
+    <button class="icon-btn" id="btn-theme" title="Hell/Dunkel">🌙</button>
+    <button class="icon-btn" id="btn-fs" title="Vollbild">⛶</button>
+  </div>
+</header>
+
+<main class="page center">
+  <div class="hud">
+    <div class="stat"><b id="h-runde">0/24</b><span>Runde</span></div>
+    <div class="stat"><b id="h-richtig">0</b><span>Richtig</span></div>
+    <div class="stat"><b id="h-abstand">–</b><span>Abstand</span></div>
+    <div class="stat"><b id="h-best">–</b><span>Bestwert</span></div>
+  </div>
+
+  <div id="start-box" class="center" style="text-align:center">
+    <p style="color:var(--muted);max-width:50ch;margin:0">
+      Du hörst zwei kurze Töne – einen <b>hohen</b> und einen <b>tiefen</b>.
+      Sage danach, in welcher Reihenfolge sie kamen. Der Abstand zwischen ihnen
+      wird immer kleiner.
+    </p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center">
+      <button class="btn" id="btn-probe">🔊 Ton prüfen</button>
+      <label style="display:flex;gap:8px;align-items:center;color:var(--muted)">
+        Lautstärke <input type="range" id="lautstaerke" min="5" max="100" value="55">
+      </label>
+    </div>
+    <p style="color:var(--muted);font-size:.9rem;margin:0">Am besten mit Kopfhörern oder in ruhiger Umgebung.</p>
+    <button class="btn primary gross" id="btn-start" style="min-width:220px">▶ Start</button>
+  </div>
+
+  <div id="spiel" style="display:none" class="center">
+    <div id="buehne">
+      <div id="wellen"><span id="w1"></span><span id="w2" class="hoch"></span></div>
+      <div id="zustand">Hör hin …</div>
+    </div>
+    <div class="ansage" id="ansage">&nbsp;</div>
+    <div class="tonknoepfe">
+      <button class="btn" id="b-hoch-tief">↘ hoch, dann tief<small>Taste 1</small></button>
+      <button class="btn" id="b-tief-hoch">↗ tief, dann hoch<small>Taste 2</small></button>
+    </div>
+    <button class="btn" id="btn-wiederholen" style="min-width:200px">🔁 Nochmal anhören</button>
+  </div>
+
+  <details class="rules">
+    <summary>📖 So geht’s</summary>
+    <p>Zwei Töne erklingen kurz nacheinander – einer tief, einer hoch. Deine Aufgabe:
+    die <b>Reihenfolge</b> nennen. Das klingt leicht, wird aber knifflig, sobald die
+    Töne dicht beieinander liegen. Am Ende zählt der kleinste Abstand, den du noch
+    sicher auseinanderhalten konntest.</p>
+    <p>Wenn du unsicher bist, darfst du dir dieselben Töne noch einmal anhören – das
+    kostet nichts. Rate lieber nicht: Die Übung stellt sich auf dich ein und wird von
+    selbst leichter, wenn du daneben liegst.</p>
+    <p>Warum das nützt: Das Unterscheiden schneller Lautfolgen ist die Grundlage des
+    <b>Sprachverstehens</b>. Wird es schlechter, fällt das Zuhören im Stimmengewirr
+    schwer, lange bevor der Hörtest etwas zeigt. Genau hier setzen die auditiven
+    Trainingsprogramme an.</p>
+  </details>
+</main>
+
+<div class="overlay" id="ov-einst" data-dismiss>
+  <div class="panel">
+    <h2>Einstellungen</h2>
+    <div class="field"><label>Runden</label>
+      <div class="seg" id="s-runden">
+        <button data-value="16">16</button>
+        <button data-value="24" class="active">24</button>
+        <button data-value="36">36</button>
+      </div>
+    </div>
+    <div class="field"><label>Tonabstand</label>
+      <div class="seg" id="s-spanne">
+        <button data-value="weit" class="active">Weit (leichter)</button>
+        <button data-value="eng">Eng (schwerer)</button>
+      </div>
+      <small>Wie weit die beiden Tonhöhen auseinanderliegen.</small>
+    </div>
+    <div class="field"><label>Startabstand</label>
+      <div class="seg" id="s-start">
+        <button data-value="500">Gemütlich</button>
+        <button data-value="320" class="active">Normal</button>
+        <button data-value="180">Zügig</button>
+      </div>
+    </div>
+    <div class="panel-buttons">
+      <button class="btn primary" id="btn-uebernehmen">Übernehmen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+var cfg = GJ.load("gehoer-cfg", { runden: 24, spanne: "weit", start: 320 });
+var lautstaerke = GJ.load("gehoer-laut", 55);
+
+var ac = null, treppe, runde, richtig, reihenfolge, laeuft = false, offen = false, spieltGerade = false;
+
+function ctxHolen() {
+  if (!ac) {
+    var C = window.AudioContext || window.webkitAudioContext;
+    ac = new C();
+  }
+  if (ac.state === "suspended") ac.resume();
+  return ac;
+}
+
+/* Ein kurzer Ton mit weichen Flanken (sonst knackt es) */
+function ton(f, start, dauer) {
+  var a = ctxHolen();
+  var o = a.createOscillator(), g = a.createGain();
+  o.type = "sine"; o.frequency.value = f;
+  var v = Math.pow(lautstaerke / 100, 2) * 0.5 + 0.005;
+  g.gain.setValueAtTime(0.0001, start);
+  g.gain.exponentialRampToValueAtTime(v, start + 0.008);
+  g.gain.setValueAtTime(v, start + dauer - 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, start + dauer);
+  o.connect(g); g.connect(a.destination);
+  o.start(start); o.stop(start + dauer + 0.02);
+}
+
+function frequenzen() {
+  return cfg.spanne === "weit" ? [700, 2000] : [1000, 1400];
+}
+
+function spielePaar(erneut) {
+  var a = ctxHolen();
+  var f = frequenzen();
+  var tief = f[0], hoch = f[1];
+  var dauer = 0.055;
+  var abstand = treppe.wert / 1000;
+  var t = a.currentTime + 0.25;
+  var ersterHoch = reihenfolge === "hoch-tief";
+  ton(ersterHoch ? hoch : tief, t, dauer);
+  ton(ersterHoch ? tief : hoch, t + dauer + abstand, dauer);
+
+  spieltGerade = true;
+  GJ.el("zustand").textContent = "Hör hin …";
+  GJ.$$(".tonknoepfe .btn").forEach(function (b) { b.disabled = true; });
+  GJ.el("btn-wiederholen").disabled = true;
+
+  /* Anzeige mitlaufen lassen */
+  var w1 = GJ.el("w1"), w2 = GJ.el("w2");
+  var ms = (dauer + abstand) * 1000;
+  setTimeout(function () { (ersterHoch ? w2 : w1).classList.add("an"); }, 250);
+  setTimeout(function () { (ersterHoch ? w2 : w1).classList.remove("an"); }, 250 + dauer * 1000);
+  setTimeout(function () { (ersterHoch ? w1 : w2).classList.add("an"); }, 250 + ms);
+  setTimeout(function () { (ersterHoch ? w1 : w2).classList.remove("an"); }, 250 + ms + dauer * 1000);
+  setTimeout(function () {
+    spieltGerade = false;
+    offen = true;
+    GJ.el("zustand").textContent = "Welche Reihenfolge war das?";
+    GJ.$$(".tonknoepfe .btn").forEach(function (b) { b.disabled = false; });
+    GJ.el("btn-wiederholen").disabled = false;
+  }, 250 + ms + dauer * 1000 + 220);
+}
+
+function naechste() {
+  if (runde >= cfg.runden) return ende();
+  runde++;
+  reihenfolge = Math.random() < 0.5 ? "hoch-tief" : "tief-hoch";
+  GJ.el("ansage").innerHTML = "&nbsp;";
+  GJ.el("ansage").className = "ansage";
+  hud();
+  spielePaar(false);
+}
+
+function antwort(wahl) {
+  if (!offen || spieltGerade) return;
+  offen = false;
+  GJ.$$(".tonknoepfe .btn").forEach(function (b) { b.disabled = true; });
+  GJ.el("btn-wiederholen").disabled = true;
+  var gut = wahl === reihenfolge;
+  if (gut) { richtig++; treppe.richtig(); } else { treppe.falsch(); }
+  var an = GJ.el("ansage");
+  an.textContent = gut ? "✓ Richtig – Abstand jetzt " + Math.round(treppe.wert) + " ms"
+                       : "✗ Es war „" + (reihenfolge === "hoch-tief" ? "hoch, dann tief" : "tief, dann hoch") + "“";
+  an.className = "ansage " + (gut ? "gut" : "schlecht");
+  GJ.pieps(gut);
+  hud();
+  setTimeout(naechste, gut ? 750 : 1400);
+}
+
+function start() {
+  ctxHolen();
+  treppe = new GJ.Treppe({ start: cfg.start, min: 6, max: 900, faktor: 0.78, nDown: 2 });
+  runde = 0; richtig = 0; laeuft = true;
+  GJ.el("start-box").style.display = "none";
+  GJ.el("spiel").style.display = "";
+  naechste();
+}
+
+function ende() {
+  laeuft = false; offen = false;
+  var schwelle = treppe.schwelle();
+  var anteil = (Math.log(900) - Math.log(schwelle)) / (Math.log(900) - Math.log(8));
+  var punkte = GJ.clamp(anteil * 100, 0, 100) * (cfg.spanne === "eng" ? 1.08 : 1);
+  GJ.el("start-box").style.display = "";
+  GJ.el("spiel").style.display = "none";
+  GJ.rahmen.fertig({
+    punkte: GJ.clamp(punkte, 0, 100),
+    roh: Math.round(schwelle),
+    titel: Math.round(schwelle) + " ms Abstand",
+    text: "So dicht durften die beiden Töne beieinanderliegen, damit du die Reihenfolge noch sicher hörst. " +
+          richtig + " von " + cfg.runden + " richtig.",
+    rohText: (cfg.spanne === "weit" ? "Weiter" : "Enger") + " Tonabstand · Trefferquote " + Math.round(treppe.quote() * 100) + " %"
+  });
+}
+
+function hud() {
+  GJ.el("h-runde").textContent = runde + "/" + cfg.runden;
+  GJ.el("h-richtig").textContent = richtig;
+  GJ.el("h-abstand").textContent = laeuft ? Math.round(treppe.wert) + " ms" : "–";
+  GJ.el("h-best").textContent = GJ.bestwert("gehoer") || "–";
+}
+
+GJ.el("b-hoch-tief").addEventListener("click", function () { antwort("hoch-tief"); });
+GJ.el("b-tief-hoch").addEventListener("click", function () { antwort("tief-hoch"); });
+GJ.el("btn-wiederholen").addEventListener("click", function () { if (!spieltGerade && laeuft) spielePaar(true); });
+GJ.el("btn-probe").addEventListener("click", function () {
+  var a = ctxHolen(), f = frequenzen();
+  ton(f[0], a.currentTime + 0.1, 0.25);
+  ton(f[1], a.currentTime + 0.5, 0.25);
+});
+GJ.el("lautstaerke").addEventListener("input", function () {
+  lautstaerke = +this.value;
+  GJ.save("gehoer-laut", lautstaerke);
+});
+
+document.addEventListener("keydown", function (e) {
+  if (document.querySelector(".overlay.open")) return;
+  if (offen && e.key === "1") antwort("hoch-tief");
+  else if (offen && e.key === "2") antwort("tief-hoch");
+  else if (laeuft && e.key === " ") { e.preventDefault(); if (!spieltGerade) spielePaar(true); }
+  else if (!laeuft && e.key === "Enter") GJ.el("btn-start").click();
+});
+
+["s-runden", "s-spanne", "s-start"].forEach(function (id) { GJ.seg(GJ.el(id)); });
+GJ.el("btn-einst").addEventListener("click", function () {
+  GJ.segSet(GJ.el("s-runden"), cfg.runden);
+  GJ.segSet(GJ.el("s-spanne"), cfg.spanne);
+  GJ.segSet(GJ.el("s-start"), cfg.start);
+  GJ.open("ov-einst");
+});
+GJ.el("btn-uebernehmen").addEventListener("click", function () {
+  cfg = {
+    runden: +GJ.segVal(GJ.el("s-runden")),
+    spanne: GJ.segVal(GJ.el("s-spanne")),
+    start: +GJ.segVal(GJ.el("s-start"))
+  };
+  GJ.save("gehoer-cfg", cfg);
+  GJ.close("ov-einst");
+  laeuft = false; offen = false;
+  GJ.el("start-box").style.display = "";
+  GJ.el("spiel").style.display = "none";
+  hud();
+});
+GJ.el("btn-start").addEventListener("click", start);
+
+document.addEventListener("DOMContentLoaded", function () {
+  GJ.rahmen.start("gehoer", start);
+  GJ.el("lautstaerke").value = lautstaerke;
+  hud();
+});
+</script>
+</body>
+</html>
