@@ -80,11 +80,6 @@
     <ul class="liste" id="verlauf"><li><span>Noch nichts geübt.</span></li></ul>
   </div>
 
-  <p class="fusszeile">
-    Die Übungen sind an Studien zum kognitiven Training angelehnt (siehe
-    <a href="ueber.html">Über dieses Programm</a>). Sie machen dich zuverlässig besser
-    in genau diesen Aufgaben – ein Heilmittel gegen das Älterwerden sind sie nicht.
-  </p>
 </main>
 
 <div class="overlay" id="ov-einst" data-dismiss>
@@ -104,6 +99,17 @@
         <button data-value="4" class="active">4 Übungen</button>
         <button data-value="5">5 Übungen</button>
       </div>
+    </div>
+    <div class="field" style="border-top:1px solid var(--border);padding-top:16px">
+      <label>Ergebnisse sichern</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="btn-sichern">💾 Datei speichern</button>
+        <button class="btn" id="btn-einlesen">📂 Datei einlesen</button>
+      </div>
+      <input type="file" id="datei" accept="application/json,.json" style="display:none">
+      <small>Alle Ergebnisse liegen nur in diesem Browser – es gibt keinen Server und kein Konto.
+      Die Sicherungsdatei bringt sie auf ein anderes Gerät oder zurück, falls der Browserspeicher
+      geleert wurde.</small>
     </div>
     <div class="field"><label>Alle Ergebnisse löschen</label>
       <button class="btn" id="btn-loeschen" style="border-color:var(--danger);color:var(--danger)">Löschen</button>
@@ -244,6 +250,29 @@ document.addEventListener("DOMContentLoaded", function () {
   GJ.el("c-gross").addEventListener("change", function () { GJ.setGross(this.checked); });
   GJ.el("c-ton").addEventListener("change", function () { GJ.save("ton", this.checked); });
   GJ.seg(GJ.el("s-laenge"), function (v) { GJ.save("sitzungslaenge", +v); });
+  GJ.el("btn-sichern").addEventListener("click", function () {
+    var name = GJ.sicherungSpeichern();
+    this.textContent = "✓ " + name;
+    var b = this;
+    setTimeout(function () { b.textContent = "💾 Datei speichern"; }, 4000);
+  });
+  GJ.el("btn-einlesen").addEventListener("click", function () { GJ.el("datei").click(); });
+  GJ.el("datei").addEventListener("change", function () {
+    var f = this.files[0];
+    if (!f) return;
+    var leser = new FileReader();
+    leser.onload = function () {
+      try {
+        var n = GJ.sicherungEinlesen(leser.result);
+        alert("Sicherung eingelesen (" + n + " Einträge). Die Seite wird neu geladen.");
+        location.reload();
+      } catch (e) {
+        alert("Das hat nicht geklappt: " + e.message);
+      }
+    };
+    leser.readAsText(f);
+    this.value = "";
+  });
   GJ.el("btn-loeschen").addEventListener("click", function () {
     if (!confirm("Wirklich alle Ergebnisse und Bestwerte löschen?")) return;
     GJ.save("log", []);

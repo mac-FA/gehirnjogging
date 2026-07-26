@@ -204,6 +204,49 @@
     },
     sitzungEnde: function () { GJ.save("sitzung", null); },
 
+    /* ---------- Sicherung: alle Ergebnisse als Datei ----------
+       Es gibt keinen Server – alles liegt nur im Browser dieses Geräts.
+       Damit nichts verlorengeht, lässt sich der ganze Bestand ausgeben
+       und auf einem anderen Gerät wieder einlesen.                     */
+    alleDaten: function () {
+      var o = {};
+      try {
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k.indexOf("gj-") === 0) o[k] = localStorage.getItem(k);
+        }
+      } catch (e) {}
+      return o;
+    },
+    sicherungSpeichern: function () {
+      var inhalt = {
+        programm: "Gehirnjogging",
+        gespeichertAm: new Date().toISOString(),
+        daten: GJ.alleDaten()
+      };
+      var d = new Date();
+      var name = "gehirnjogging-sicherung-" + d.getFullYear() + "-" +
+        String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") + ".json";
+      var blob = new Blob([JSON.stringify(inhalt, null, 2)], { type: "application/json" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+      return name;
+    },
+    sicherungEinlesen: function (text) {
+      var o = JSON.parse(text);
+      var daten = o && o.daten ? o.daten : o;
+      var schluessel = Object.keys(daten || {}).filter(function (k) { return k.indexOf("gj-") === 0; });
+      if (!schluessel.length) throw new Error("Diese Datei enthält keine Gehirnjogging-Ergebnisse.");
+      schluessel.forEach(function (k) {
+        try { localStorage.setItem(k, daten[k]); } catch (e) {}
+      });
+      return schluessel.length;
+    },
+
     /* ---------- Tagesaufgabe ---------- */
     tagesSeed: function () { return GJ.heute(); },
     tagesaufgabeErledigt: function () { return GJ.load("tag-erledigt", 0) === GJ.heute(); },
@@ -238,6 +281,13 @@
   };
 
   /* ---------- Aufbau nach dem Laden ---------- */
+  /* Den Browser bitten, diese Daten nicht bei Platzmangel wegzuräumen */
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persisted().then(function (schon) {
+      if (!schon) navigator.storage.persist().catch(function () {});
+    }).catch(function () {});
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     if (GJ.istGross()) document.body.classList.add("gross");
     var t = GJ.el("btn-theme"); if (t) t.addEventListener("click", GJ.toggleTheme);

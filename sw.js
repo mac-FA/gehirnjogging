@@ -1,5 +1,5 @@
 /* Gehirnjogging – Offline-Betrieb. Beim Ändern von Dateien die Version hochzählen. */
-var CACHE = "gehirnjogging-v1";
+var CACHE = "gehirnjogging-v2";
 var DATEIEN = [
   "./",
   "./index.html",
